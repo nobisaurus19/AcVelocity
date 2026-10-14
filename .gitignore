@@ -1,0 +1,23 @@
+## Build and output directories
+[Bb]in/
+[Oo]bj/
+publish/
+
+## Visual Studio & IDE files
+.vs/
+.idea/
+.vscode/
+*.user
+*.userprefs
+*.suo
+*.userosscache
+*.sln.docstates
+
+## Logs and diagnostics
+*.log
+crash.log
+
+## OS files
+.DS_Store
+Thumbs.db
+desktop.ini
