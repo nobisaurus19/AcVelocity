@@ -1,9 +1,236 @@
 using System;
+using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Globalization;
 using System.Runtime.CompilerServices;
 
 namespace AcVelocity.Models
 {
+    public class ControlProfileInfo
+    {
+        public string Name { get; set; } = string.Empty;
+        public string FilePath { get; set; } = string.Empty;
+        public string InputMethodBadge { get; set; } = "WHEEL";
+        public string DeviceName { get; set; } = string.Empty;
+        public bool IsFactoryPreset { get; set; }
+        public DateTime LastModified { get; set; }
+        public string DisplayTitle => IsFactoryPreset
+            ? $"[PRESET] {Name}"
+            : (string.IsNullOrWhiteSpace(DeviceName) ? $"★ {Name} [{InputMethodBadge}]" : $"★ {Name} [{InputMethodBadge} — {DeviceName}]");
+    }
+
+    public class ControlActionBinding : INotifyPropertyChanged
+    {
+        public event PropertyChangedEventHandler? PropertyChanged;
+
+        private void OnPropertyChanged([CallerMemberName] string? propertyName = null)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
+
+        private bool SetField<T>(ref T field, T value, [CallerMemberName] string? propertyName = null)
+        {
+            if (Equals(field, value)) return false;
+            field = value;
+            OnPropertyChanged(propertyName);
+            return true;
+        }
+
+        private string _sectionName = string.Empty;
+        public string SectionName
+        {
+            get => _sectionName;
+            set => SetField(ref _sectionName, value);
+        }
+
+        private string _displayName = string.Empty;
+        public string DisplayName
+        {
+            get => _displayName;
+            set => SetField(ref _displayName, value);
+        }
+
+        private string _thaiDescription = string.Empty;
+        public string ThaiDescription
+        {
+            get => _thaiDescription;
+            set => SetField(ref _thaiDescription, value);
+        }
+
+        private string _category = "SHIFTER & GEARS";
+        public string Category
+        {
+            get => _category;
+            set => SetField(ref _category, value);
+        }
+
+        private int _joyIndex = 0;
+        public int JoyIndex
+        {
+            get => _joyIndex;
+            set
+            {
+                if (SetField(ref _joyIndex, value))
+                {
+                    OnPropertyChanged(nameof(WheelBindingDisplay));
+                }
+            }
+        }
+
+        private int _buttonIndex = -1;
+        public int ButtonIndex
+        {
+            get => _buttonIndex;
+            set
+            {
+                if (SetField(ref _buttonIndex, value))
+                {
+                    OnPropertyChanged(nameof(WheelBindingDisplay));
+                    OnPropertyChanged(nameof(HasWheelBinding));
+                }
+            }
+        }
+
+        private string _keyHex = "-1";
+        public string KeyHex
+        {
+            get => _keyHex;
+            set
+            {
+                if (SetField(ref _keyHex, value))
+                {
+                    OnPropertyChanged(nameof(KeyBindingDisplay));
+                    OnPropertyChanged(nameof(HasKeyBinding));
+                }
+            }
+        }
+
+        private string _xboxButton = string.Empty;
+        public string XboxButton
+        {
+            get => _xboxButton;
+            set
+            {
+                if (SetField(ref _xboxButton, value))
+                {
+                    OnPropertyChanged(nameof(XboxBindingDisplay));
+                    OnPropertyChanged(nameof(HasXboxBinding));
+                }
+            }
+        }
+
+        private bool _isListening = false;
+        public bool IsListening
+        {
+            get => _isListening;
+            set
+            {
+                if (SetField(ref _isListening, value))
+                {
+                    OnPropertyChanged(nameof(CaptureButtonText));
+                }
+            }
+        }
+
+        // Computed properties
+        public bool HasWheelBinding => ButtonIndex >= 0;
+        public bool HasKeyBinding => !string.IsNullOrEmpty(KeyHex) && KeyHex != "-1" && KeyHex != "0" && KeyHex != "0x0";
+        public bool HasXboxBinding => !string.IsNullOrEmpty(XboxButton) && XboxButton != "-1";
+
+        public string WheelBindingDisplay => ButtonIndex >= 0
+            ? $"JOY{(JoyIndex < 0 ? 0 : JoyIndex)} · B{ButtonIndex} (Btn #{ButtonIndex + 1})"
+            : "UNBOUND";
+
+        public string KeyBindingDisplay => FormatVirtualKeyName(KeyHex);
+
+        public string XboxBindingDisplay => string.IsNullOrEmpty(XboxButton) || XboxButton == "-1"
+            ? "NONE"
+            : XboxButton;
+
+        public string CaptureButtonText => IsListening
+            ? "🔴 PRESS KEY / WHEEL / PAD (ESC CANCEL)"
+            : "🎯 CLICK TO BIND";
+
+        public static string FormatVirtualKeyName(string? keyHex)
+        {
+            if (string.IsNullOrWhiteSpace(keyHex) || keyHex == "-1" || keyHex == "0" || keyHex == "0x0" || keyHex == "0x00")
+                return "UNBOUND";
+
+            int commentIdx = keyHex.IndexOf(';');
+            if (commentIdx >= 0) keyHex = keyHex.Substring(0, commentIdx).Trim();
+
+            int vk = -1;
+            if (keyHex.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
+            {
+                if (!int.TryParse(keyHex.Substring(2), NumberStyles.HexNumber, CultureInfo.InvariantCulture, out vk))
+                    return keyHex.ToUpperInvariant();
+            }
+            else if (!int.TryParse(keyHex, NumberStyles.Integer, CultureInfo.InvariantCulture, out vk))
+            {
+                if (!int.TryParse(keyHex, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out vk))
+                    return keyHex.ToUpperInvariant();
+            }
+
+            if (vk <= 0) return "UNBOUND";
+
+            return vk switch
+            {
+                0x08 => "BACKSPACE",
+                0x09 => "TAB",
+                0x0C => "CLEAR",
+                0x0D => "ENTER",
+                0x10 => "SHIFT",
+                0x11 => "CTRL",
+                0x12 => "ALT",
+                0x13 => "PAUSE",
+                0x14 => "CAPS LOCK",
+                0x1B => "ESC",
+                0x20 => "SPACE",
+                0x21 => "PAGE UP",
+                0x22 => "PAGE DOWN",
+                0x23 => "END",
+                0x24 => "HOME",
+                0x25 => "LEFT ARROW",
+                0x26 => "UP ARROW",
+                0x27 => "RIGHT ARROW",
+                0x28 => "DOWN ARROW",
+                0x2C => "PRINT SCREEN",
+                0x2D => "INSERT",
+                0x2E => "DELETE",
+                >= 0x30 and <= 0x39 => $"KEY {(char)vk}",
+                >= 0x41 and <= 0x5A => $"KEY {(char)vk}",
+                0x5B => "LEFT WIN",
+                0x5C => "RIGHT WIN",
+                >= 0x60 and <= 0x69 => $"NUMPAD {vk - 0x60}",
+                0x6A => "NUMPAD *",
+                0x6B => "NUMPAD +",
+                0x6C => "NUMPAD ENTER",
+                0x6D => "NUMPAD -",
+                0x6E => "NUMPAD .",
+                0x6F => "NUMPAD /",
+                >= 0x70 and <= 0x7B => $"F{vk - 0x70 + 1}",
+                0xA0 => "LEFT SHIFT",
+                0xA1 => "RIGHT SHIFT",
+                0xA2 => "LEFT CTRL",
+                0xA3 => "RIGHT CTRL",
+                0xA4 => "LEFT ALT",
+                0xA5 => "RIGHT ALT",
+                0xBA => "; :",
+                0xBB => "= +",
+                0xBC => ", <",
+                0xBD => "- _",
+                0xBE => ". >",
+                0xBF => "/ ?",
+                0xC0 => "` ~",
+                0xDB => "[ {",
+                0xDC => "\\ |",
+                0xDD => "] }",
+                0xDE => "' \"",
+                _ => $"0x{vk:X2}"
+            };
+        }
+    }
+
     public class FfbSettings : INotifyPropertyChanged
     {
         public event PropertyChangedEventHandler? PropertyChanged;
@@ -341,6 +568,35 @@ namespace AcVelocity.Models
         {
             get => _buttonMgukDown;
             set => SetField(ref _buttonMgukDown, value);
+        }
+
+        // === Advanced Control Options & Studio Collections ===
+        private bool _combineWithKeyboard = true;
+        public bool CombineWithKeyboard
+        {
+            get => _combineWithKeyboard;
+            set => SetField(ref _combineWithKeyboard, value);
+        }
+
+        private string _activeProfileName = "Active (controls.ini)";
+        public string ActiveProfileName
+        {
+            get => _activeProfileName;
+            set => SetField(ref _activeProfileName, value);
+        }
+
+        private ObservableCollection<ControlActionBinding> _actionBindings = new();
+        public ObservableCollection<ControlActionBinding> ActionBindings
+        {
+            get => _actionBindings;
+            set => SetField(ref _actionBindings, value);
+        }
+
+        private ObservableCollection<ControlProfileInfo> _savedProfiles = new();
+        public ObservableCollection<ControlProfileInfo> SavedProfiles
+        {
+            get => _savedProfiles;
+            set => SetField(ref _savedProfiles, value);
         }
 
         public string DisplayMasterGain => $"{MasterGain * 100:0}%";

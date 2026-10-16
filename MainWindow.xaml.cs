@@ -378,5 +378,92 @@ namespace AcVelocity
                 _vm.DrivingAssists.TcMode = tcVal;
             }
         }
+
+        // ================= CONTROL PROFILE & HARDWARE BINDING STUDIO HANDLERS =================
+
+        protected override async void OnPreviewKeyDown(KeyEventArgs e)
+        {
+            base.OnPreviewKeyDown(e);
+            if (_vm != null && _vm.IsListeningForInput)
+            {
+                var capturedKey = e.Key == Key.System ? e.SystemKey : e.Key;
+                await _vm.HandleKeyboardKeyCapturedAsync(capturedKey);
+                e.Handled = true;
+            }
+        }
+
+        private async void BtnLoadControlProfile_Click(object sender, RoutedEventArgs e)
+        {
+            await _vm.LoadSelectedControlProfileAsync();
+        }
+
+        private async void BtnSaveNewControlProfile_Click(object sender, RoutedEventArgs e)
+        {
+            var name = TxtNewControlProfileName?.Text?.Trim();
+            if (!string.IsNullOrEmpty(name))
+            {
+                await _vm.SaveNewControlProfileAsync(name);
+            }
+        }
+
+        private async void BtnOverwriteControlProfile_Click(object sender, RoutedEventArgs e)
+        {
+            await _vm.OverwriteSelectedControlProfileAsync();
+        }
+
+        private void BtnDeleteControlProfile_Click(object sender, RoutedEventArgs e)
+        {
+            _vm.DeleteSelectedControlProfile();
+        }
+
+        private void BtnOpenControlProfilesFolder_Click(object sender, RoutedEventArgs e)
+        {
+            _vm.OpenControlProfilesFolder();
+        }
+
+        private void BtnControlCategory_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is RadioButton rb && rb.Tag is string category)
+            {
+                _vm.SelectedControlCategory = category;
+            }
+        }
+
+        private async void BtnBindControlAction_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is FrameworkElement fe && fe.Tag is ControlActionBinding binding)
+            {
+                await _vm.StartListeningForBindingAsync(binding);
+            }
+        }
+
+        private async void BtnClearControlAction_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is FrameworkElement fe && fe.Tag is ControlActionBinding binding)
+            {
+                await _vm.ClearActionBindingAsync(binding);
+            }
+        }
+
+        private async void BtnWheelBtnDec_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is FrameworkElement fe && fe.Tag is ControlActionBinding binding)
+            {
+                await _vm.CycleWheelButtonAsync(binding, -1);
+            }
+        }
+
+        private async void BtnWheelBtnInc_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is FrameworkElement fe && fe.Tag is ControlActionBinding binding)
+            {
+                await _vm.CycleWheelButtonAsync(binding, 1);
+            }
+        }
+
+        private async void CmbXboxButton_DropDownClosed(object sender, EventArgs e)
+        {
+            await _vm.SaveFfbSettingsAsync();
+        }
     }
 }

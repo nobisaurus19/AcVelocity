@@ -4,6 +4,7 @@ using System.ComponentModel;
 using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Threading;
 using AcVelocity.Collections;
@@ -483,8 +484,71 @@ namespace AcVelocity.ViewModels
         public FfbSettings FfbSettings
         {
             get => _ffbSettings;
-            set { SetField(ref _ffbSettings, value); }
+            set
+            {
+                if (SetField(ref _ffbSettings, value))
+                {
+                    SelectedControlProfile = value?.SavedProfiles?.FirstOrDefault(p => string.Equals(p.Name, value.ActiveProfileName, StringComparison.OrdinalIgnoreCase))
+                                             ?? value?.SavedProfiles?.FirstOrDefault();
+                    ApplyControlBindingsFilter();
+                }
+            }
         }
+
+        // Hardware Input Capture & Binding Studio State
+        private readonly HardwareInputCaptureService _inputCaptureService = new();
+        private CancellationTokenSource? _bindingCaptureCts;
+        private ControlActionBinding? _currentlyListeningBinding;
+
+        public bool IsListeningForInput => _currentlyListeningBinding != null && _currentlyListeningBinding.IsListening;
+
+        public RangeObservableCollection<ControlActionBinding> FilteredActionBindings { get; } = new();
+
+        private string _selectedControlCategory = "ALL";
+        public string SelectedControlCategory
+        {
+            get => _selectedControlCategory;
+            set
+            {
+                if (SetField(ref _selectedControlCategory, value))
+                {
+                    ApplyControlBindingsFilter();
+                }
+            }
+        }
+
+        private string _controlSearchQuery = string.Empty;
+        public string ControlSearchQuery
+        {
+            get => _controlSearchQuery;
+            set
+            {
+                if (SetField(ref _controlSearchQuery, value))
+                {
+                    ApplyControlBindingsFilter();
+                }
+            }
+        }
+
+        private ControlProfileInfo? _selectedControlProfile;
+        public ControlProfileInfo? SelectedControlProfile
+        {
+            get => _selectedControlProfile;
+            set => SetField(ref _selectedControlProfile, value);
+        }
+
+        private string _newControlProfileName = string.Empty;
+        public string NewControlProfileName
+        {
+            get => _newControlProfileName;
+            set => SetField(ref _newControlProfileName, value);
+        }
+
+        public ObservableCollection<string> AvailableXboxButtons { get; } = new()
+        {
+            "", "A", "B", "X", "Y", "LSHOULDER", "RSHOULDER", "DPAD_UP", "DPAD_DOWN", "DPAD_LEFT", "DPAD_RIGHT", "START", "BACK", "LTHUMB_PRESS", "RTHUMB_PRESS"
+        };
+
 
         // Simulation Presets Matrix
         public ObservableCollection<NexusPreset> AvailablePresets { get; } = new();
@@ -734,7 +798,10 @@ namespace AcVelocity.ViewModels
 
                 // Load Controls & Force Feedback (FFB) settings
                 FfbSettings = await _ffbService.LoadSettingsAsync();
-                Log($"Controls & FFB calibrated: Gain {FfbSettings.DisplayMasterGain}, Lock {FfbSettings.DisplayLock}");
+                SelectedControlProfile = FfbSettings?.SavedProfiles?.FirstOrDefault(p => string.Equals(p.Name, FfbSettings.ActiveProfileName, StringComparison.OrdinalIgnoreCase))
+                                         ?? FfbSettings?.SavedProfiles?.FirstOrDefault();
+                ApplyControlBindingsFilter();
+                Log($"Controls & FFB calibrated: Gain {FfbSettings?.DisplayMasterGain}, Lock {FfbSettings?.DisplayLock}, Profiles: {FfbSettings?.SavedProfiles?.Count ?? 0}, Bindings: {FfbSettings?.ActionBindings?.Count ?? 0}");
 
                 // Load Audio settings
                 AudioSettings = await _systemService.LoadAudioSettingsAsync();
@@ -1141,6 +1208,304 @@ namespace AcVelocity.ViewModels
                 Log($"Active Control Input System changed to: {method}");
             }
         }
+
+        public void ApplyControlBindingsFilter()
+        {
+            if (FfbSettings?.ActionBindings == null)
+            {
+                FilteredActionBindings.Clear();
+                return;
+            }
+
+            var query = ControlSearchQuery?.Trim() ?? string.Empty;
+            var category = SelectedControlCategory ?? "ALL";
+
+            var filtered = FfbSettings.ActionBindings.Where(b =>
+            {
+                if (!string.Equals(category, "ALL", StringComparison.OrdinalIgnoreCase) &&
+                    !string.Equals(b.Category, category, StringComparison.OrdinalIgnoreCase))
+                {
+                    return false;
+                }
+
+                if (!string.IsNullOrEmpty(query))
+                {
+                    return b.DisplayName.Contains(query, StringComparison.OrdinalIgnoreCase) ||
+                           b.ThaiDescription.Contains(query, StringComparison.OrdinalIgnoreCase) ||
+                           b.SectionName.Contains(query, StringComparison.OrdinalIgnoreCase) ||
+                           b.KeyBindingDisplay.Contains(query, StringComparison.OrdinalIgnoreCase) ||
+                           b.WheelBindingDisplay.Contains(query, StringComparison.OrdinalIgnoreCase) ||
+                           b.XboxBindingDisplay.Contains(query, StringComparison.OrdinalIgnoreCase);
+                }
+
+                return true;
+            }).ToList();
+
+            FilteredActionBindings.ReplaceRange(filtered);
+        }
+
+        public async Task StartListeningForBindingAsync(ControlActionBinding binding)
+        {
+            if (binding == null) return;
+
+            if (_currentlyListeningBinding != null)
+            {
+                _currentlyListeningBinding.IsListening = false;
+                _bindingCaptureCts?.Cancel();
+                _bindingCaptureCts?.Dispose();
+                _bindingCaptureCts = null;
+                _currentlyListeningBinding = null;
+            }
+
+            _currentlyListeningBinding = binding;
+            binding.IsListening = true;
+            OnPropertyChanged(nameof(IsListeningForInput));
+            Log($"Listening for input binding: [{binding.DisplayName}]... Press wheel button, gamepad button, or keyboard key (ESC to cancel)");
+            StatusMessage = $"PRESS ANY KEY / WHEEL / GAMEPAD BUTTON FOR [{binding.DisplayName}]";
+
+            _bindingCaptureCts = new CancellationTokenSource();
+            var token = _bindingCaptureCts.Token;
+
+            try
+            {
+                var result = await _inputCaptureService.WaitForHardwareButtonAsync(token);
+                if (!result.IsCancelled)
+                {
+                    if (result.IsWheelButton)
+                    {
+                        binding.JoyIndex = result.JoyIndex;
+                        binding.ButtonIndex = result.ButtonIndex;
+                        Log($"Mapped Wheel Button: JOY{result.JoyIndex} · Button {result.ButtonIndex} to {binding.DisplayName}");
+                    }
+                    else if (result.IsXboxButton)
+                    {
+                        binding.XboxButton = result.XboxButton;
+                        Log($"Mapped Gamepad Button: {result.XboxButton} to {binding.DisplayName}");
+                    }
+                    else if (result.IsKeyboardKey)
+                    {
+                        binding.KeyHex = result.KeyHex;
+                        Log($"Mapped Key: {binding.KeyBindingDisplay} ({result.KeyHex}) to {binding.DisplayName}");
+                    }
+
+                    await SaveFfbSettingsAsync();
+                    StatusMessage = $"BOUND: {binding.DisplayName}";
+                }
+                else
+                {
+                    Log($"Binding cancelled for {binding.DisplayName}");
+                    StatusMessage = "BINDING CANCELLED";
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                Log($"Binding cancelled for {binding.DisplayName}");
+            }
+            catch (Exception ex)
+            {
+                Log($"Hardware capture error: {ex.Message}");
+            }
+            finally
+            {
+                binding.IsListening = false;
+                if (_currentlyListeningBinding == binding)
+                {
+                    _currentlyListeningBinding = null;
+                }
+                OnPropertyChanged(nameof(IsListeningForInput));
+            }
+        }
+
+        public async Task HandleKeyboardKeyCapturedAsync(System.Windows.Input.Key key)
+        {
+            if (_currentlyListeningBinding == null || !_currentlyListeningBinding.IsListening) return;
+
+            var target = _currentlyListeningBinding;
+
+            if (key == System.Windows.Input.Key.Escape)
+            {
+                _bindingCaptureCts?.Cancel();
+                target.IsListening = false;
+                _currentlyListeningBinding = null;
+                OnPropertyChanged(nameof(IsListeningForInput));
+                Log($"Binding cancelled for {target.DisplayName}");
+                StatusMessage = "BINDING CANCELLED";
+                return;
+            }
+
+            _bindingCaptureCts?.Cancel();
+
+            var hex = HardwareInputCaptureService.KeyToHex(key);
+            target.KeyHex = hex;
+            target.IsListening = false;
+            _currentlyListeningBinding = null;
+            OnPropertyChanged(nameof(IsListeningForInput));
+
+            Log($"Mapped Keyboard Key: {target.KeyBindingDisplay} ({hex}) to {target.DisplayName}");
+            await SaveFfbSettingsAsync();
+            StatusMessage = $"BOUND: {target.DisplayName} -> {target.KeyBindingDisplay}";
+        }
+
+        public async Task ClearActionBindingAsync(ControlActionBinding binding)
+        {
+            if (binding == null) return;
+            binding.ButtonIndex = -1;
+            binding.JoyIndex = 0;
+            binding.KeyHex = "-1";
+            binding.XboxButton = string.Empty;
+            Log($"Cleared all bindings for: {binding.DisplayName}");
+            await SaveFfbSettingsAsync();
+            StatusMessage = $"CLEARED: {binding.DisplayName}";
+        }
+
+        public async Task CycleWheelButtonAsync(ControlActionBinding binding, int delta)
+        {
+            if (binding == null) return;
+            int next = binding.ButtonIndex + delta;
+            if (next < -1) next = -1;
+            if (next > 127) next = 127;
+            binding.ButtonIndex = next;
+            if (binding.ButtonIndex >= 0 && binding.JoyIndex < 0)
+            {
+                binding.JoyIndex = 0;
+            }
+            Log($"Adjusted wheel button for {binding.DisplayName} to {binding.WheelBindingDisplay}");
+            await SaveFfbSettingsAsync();
+        }
+
+        public async Task LoadSelectedControlProfileAsync()
+        {
+            if (SelectedControlProfile == null || string.IsNullOrEmpty(SelectedControlProfile.FilePath))
+            {
+                Log("No control profile selected to load.");
+                return;
+            }
+
+            try
+            {
+                StatusMessage = $"LOADING CONTROL PROFILE: {SelectedControlProfile.Name}...";
+                Log($"Loading control profile: {SelectedControlProfile.FilePath}...");
+                FfbSettings = await _ffbService.LoadProfileAsync(SelectedControlProfile.FilePath);
+                StatusMessage = $"PROFILE ACTIVE: {FfbSettings.ActiveProfileName}";
+                Log($"Control profile loaded and active: {FfbSettings.ActiveProfileName}");
+            }
+            catch (Exception ex)
+            {
+                Log($"Error loading control profile: {ex.Message}");
+                StatusMessage = "PROFILE LOAD FAILED";
+            }
+        }
+
+        public async Task SaveNewControlProfileAsync(string profileName)
+        {
+            if (string.IsNullOrWhiteSpace(profileName))
+            {
+                Log("Cannot save control profile: Name is empty.");
+                return;
+            }
+
+            try
+            {
+                StatusMessage = $"SAVING PROFILE: {profileName}...";
+                var savedProfile = await _ffbService.SaveProfileAsync(FfbSettings, profileName.Trim());
+                if (savedProfile != null)
+                {
+                    SelectedControlProfile = savedProfile;
+                    NewControlProfileName = string.Empty;
+                    StatusMessage = $"PROFILE SAVED: {savedProfile.Name}";
+                    Log($"Control profile saved successfully: {savedProfile.FilePath}");
+                }
+            }
+            catch (Exception ex)
+            {
+                Log($"Error saving control profile: {ex.Message}");
+                StatusMessage = "PROFILE SAVE FAILED";
+            }
+        }
+
+        public async Task OverwriteSelectedControlProfileAsync()
+        {
+            if (SelectedControlProfile == null)
+            {
+                Log("No control profile selected to overwrite.");
+                return;
+            }
+
+            if (SelectedControlProfile.IsFactoryPreset)
+            {
+                Log("Cannot overwrite factory presets. Use 'Save As New Profile' instead.");
+                StatusMessage = "CANNOT OVERWRITE FACTORY PRESET";
+                return;
+            }
+
+            try
+            {
+                StatusMessage = $"OVERWRITING PROFILE: {SelectedControlProfile.Name}...";
+                var saved = await _ffbService.SaveProfileAsync(FfbSettings, SelectedControlProfile.Name);
+                if (saved != null)
+                {
+                    SelectedControlProfile = saved;
+                    StatusMessage = $"PROFILE UPDATED: {saved.Name}";
+                    Log($"Control profile updated: {saved.FilePath}");
+                }
+            }
+            catch (Exception ex)
+            {
+                Log($"Error overwriting control profile: {ex.Message}");
+                StatusMessage = "PROFILE UPDATE FAILED";
+            }
+        }
+
+        public void DeleteSelectedControlProfile()
+        {
+            if (SelectedControlProfile == null)
+            {
+                Log("No control profile selected to delete.");
+                return;
+            }
+
+            if (SelectedControlProfile.IsFactoryPreset)
+            {
+                Log("Cannot delete built-in factory preset profiles.");
+                StatusMessage = "CANNOT DELETE FACTORY PRESET";
+                return;
+            }
+
+            try
+            {
+                var name = SelectedControlProfile.Name;
+                _ffbService.DeleteProfile(SelectedControlProfile.FilePath);
+                FfbSettings.SavedProfiles.Remove(SelectedControlProfile);
+                SelectedControlProfile = FfbSettings.SavedProfiles.FirstOrDefault();
+                Log($"Deleted control profile: {name}");
+                StatusMessage = $"PROFILE DELETED: {name}";
+            }
+            catch (Exception ex)
+            {
+                Log($"Error deleting control profile: {ex.Message}");
+                StatusMessage = "PROFILE DELETE FAILED";
+            }
+        }
+
+        public void OpenControlProfilesFolder()
+        {
+            try
+            {
+                var dir = _ffbService.GetSavedSetupsDir();
+                if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = dir,
+                    UseShellExecute = true
+                });
+                Log($"Opened control profiles folder: {dir}");
+            }
+            catch (Exception ex)
+            {
+                Log($"Failed to open profiles folder: {ex.Message}");
+            }
+        }
+
 
         public async Task SaveAudioSettingsAsync()
         {

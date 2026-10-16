@@ -7,6 +7,6 @@ In this repository (`AcVelocity` — .NET 8 WPF Assetto Corsa Launcher), always 
    - Design exact class/method contracts and partition work by file so workers never collide.
    - Run the final build & publish command (`& "C:\Users\net_z\.dotnet\dotnet.exe" publish -c Release -o ./publish`) after workers finish.
 
-2. **Gemini 3.8 Flash (`flash_worker` / `Model: "flash"` — Execution Worker)**:
-   - All subagent calls (`invoke_subagent`) for writing C# services/models/viewmodels, editing XAML, or researching files MUST set `Model: "flash"`.
-   - If `flash_worker` is not yet registered in the active session, define it once with `define_subagent` (`name: "flash_worker"`, `enable_write_tools: true`, `enable_mcp_tools: true`) and invoke it with `Model: "flash"`.
+2. **Gemini 3.8 Flash (`Model: "flash"` — Execution Worker)**:
+   - For writing/editing C# services, models, viewmodels, or XAML, invoke `TypeName: "self"` with `Model: "flash"` so the 3.8 Flash worker inherits `write_to_file` and `replace_file_content`.
+   - For read-only codebase/file inspection, invoke `TypeName: "research"` with `Model: "flash"`.

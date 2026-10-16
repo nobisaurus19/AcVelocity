@@ -1022,6 +1022,102 @@
                             </Grid>
                         </Border>
 
+                        <!-- CONTROL PROFILE MANAGER BAR (ระบบแยกโปรไฟล์การควบคุม) -->
+                        <Border Style="{StaticResource GlassPanelStyle}" Padding="18,14" Margin="0,0,0,20" BorderBrush="#33FF1E40">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+
+                                <!-- Top Row: Active Profile Status & Profile Selector & Action Buttons -->
+                                <Grid Grid.Row="0" Margin="0,0,0,12">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="300"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <!-- Active Profile Badge -->
+                                    <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,16,0">
+                                        <TextBlock Text="ACTIVE PROFILE:" Foreground="{StaticResource TextMutedBrush}" FontSize="11" FontWeight="Bold" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                        <Border Background="#1AFF1E40" BorderBrush="#80FF1E40" BorderThickness="1" CornerRadius="6" Padding="10,5">
+                                            <TextBlock Text="{Binding FfbSettings.ActiveProfileName}" Foreground="{StaticResource NeonRedBrightBrush}" FontSize="11" FontWeight="Bold"/>
+                                        </Border>
+                                    </StackPanel>
+
+                                    <!-- Profile Selection ComboBox -->
+                                    <ComboBox Grid.Column="1" 
+                                              Style="{StaticResource FuturisticComboBoxStyle}"
+                                              ItemsSource="{Binding FfbSettings.SavedProfiles}"
+                                              SelectedItem="{Binding SelectedControlProfile, Mode=TwoWay}"
+                                              DisplayMemberPath="DisplayTitle"
+                                              VerticalAlignment="Center"
+                                              Margin="0,0,12,0"/>
+
+                                    <!-- Action Buttons -->
+                                    <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                                        <Button Click="BtnLoadControlProfile_Click" Style="{StaticResource GlassSecondaryButtonStyle}" Padding="12,7" Margin="0,0,6,0">
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Text="📂" FontSize="11" Margin="0,0,6,0"/>
+                                                <TextBlock Text="LOAD PROFILE" FontSize="11" FontWeight="Bold"/>
+                                            </StackPanel>
+                                        </Button>
+
+                                        <Button Click="BtnOverwriteControlProfile_Click" Style="{StaticResource GlassSecondaryButtonStyle}" Padding="12,7" Margin="0,0,6,0">
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Text="🔄" FontSize="11" Margin="0,0,6,0"/>
+                                                <TextBlock Text="UPDATE SELECTED" FontSize="11" FontWeight="Bold"/>
+                                            </StackPanel>
+                                        </Button>
+
+                                        <Button Click="BtnDeleteControlProfile_Click" Style="{StaticResource GlassSecondaryButtonStyle}" Padding="12,7" Margin="0,0,6,0">
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Text="🗑️" FontSize="11" Margin="0,0,6,0"/>
+                                                <TextBlock Text="DELETE" FontSize="11" FontWeight="Bold"/>
+                                            </StackPanel>
+                                        </Button>
+
+                                        <Button Click="BtnOpenControlProfilesFolder_Click" Style="{StaticResource GlassSecondaryButtonStyle}" Padding="12,7">
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Text="📁" FontSize="11" Margin="0,0,6,0"/>
+                                                <TextBlock Text="FOLDER" FontSize="11" FontWeight="Bold"/>
+                                            </StackPanel>
+                                        </Button>
+                                    </StackPanel>
+                                </Grid>
+
+                                <!-- Bottom Row: Save As New Profile Input -->
+                                <Grid Grid.Row="1">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="280"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <TextBlock Grid.Column="0" Text="CREATE PROFILE:" Foreground="{StaticResource TextMutedBrush}" FontSize="11" FontWeight="Bold" VerticalAlignment="Center" Margin="0,0,12,0"/>
+
+                                    <TextBox Grid.Column="1" 
+                                             x:Name="TxtNewControlProfileName"
+                                             Text="{Binding NewControlProfileName, UpdateSourceTrigger=PropertyChanged}"
+                                             Style="{StaticResource FuturisticTextBoxStyle}"
+                                             VerticalAlignment="Center"
+                                             Margin="0,0,12,0"
+                                             Tag="e.g. MOZA_R3_Drift_Setup"/>
+
+                                    <Button Grid.Column="2" Click="BtnSaveNewControlProfile_Click" Style="{StaticResource NeonLaunchButtonStyle}" Padding="16,7" VerticalAlignment="Center">
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Text="💾" FontSize="11" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                                            <TextBlock Text="SAVE AS NEW PROFILE" FontSize="11" FontWeight="Bold" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                    </Button>
+
+                                    <TextBlock Grid.Column="3" Text="Saves current wheel FFB gains, steering lock, pedal gammas, and button mappings to controllers/savedsetups/" Foreground="{StaticResource TextMutedBrush}" FontSize="10" FontStyle="Italic" VerticalAlignment="Center" Margin="14,0,0,0"/>
+                                </Grid>
+                            </Grid>
+                        </Border>
+
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*"/>
@@ -1236,87 +1332,135 @@
                                         </Grid>
                                     </StackPanel>
                                 </Border>
-
-                                <!-- CARD 5: QUICK BUTTON ASSIGNMENTS HUD -->
-                                <Border Style="{StaticResource GlassPanelStyle}" Padding="22">
-                                    <StackPanel>
-                                        <Grid Margin="0,0,0,14">
-                                            <TextBlock Text="HARDWARE BUTTON MAPPINGS // HUD" Foreground="{StaticResource NeonRedBrightBrush}" FontSize="13" FontWeight="Bold" VerticalAlignment="Center"/>
-                                            <TextBlock Text="DirectInput Direct Bindings" Foreground="{StaticResource TextMutedBrush}" FontSize="11" HorizontalAlignment="Right" VerticalAlignment="Center"/>
-                                        </Grid>
-
-                                        <UniformGrid Columns="2" Margin="0,0,0,8">
-                                            <!-- Gear Up / Down -->
-                                            <Border Background="#14FFFFFF" CornerRadius="6" Padding="10,8" Margin="0,0,4,8">
-                                                <StackPanel>
-                                                    <TextBlock Text="SHIFT UP PADDLE" Foreground="{StaticResource TextMutedBrush}" FontSize="10" FontWeight="Bold"/>
-                                                    <TextBlock Text="{Binding FfbSettings.ButtonGearUp}" Foreground="{StaticResource CyberCyanBrush}" FontSize="12" FontWeight="ExtraBold" Margin="0,2,0,0"/>
-                                                </StackPanel>
-                                            </Border>
-                                            <Border Background="#14FFFFFF" CornerRadius="6" Padding="10,8" Margin="4,0,0,8">
-                                                <StackPanel>
-                                                    <TextBlock Text="SHIFT DOWN PADDLE" Foreground="{StaticResource TextMutedBrush}" FontSize="10" FontWeight="Bold"/>
-                                                    <TextBlock Text="{Binding FfbSettings.ButtonGearDown}" Foreground="{StaticResource CyberCyanBrush}" FontSize="12" FontWeight="ExtraBold" Margin="0,2,0,0"/>
-                                                </StackPanel>
-                                            </Border>
-
-                                            <!-- Headlights / Flash -->
-                                            <Border Background="#14FFFFFF" CornerRadius="6" Padding="10,8" Margin="0,0,4,8">
-                                                <StackPanel>
-                                                    <TextBlock Text="HEADLIGHTS TOGGLE" Foreground="{StaticResource TextMutedBrush}" FontSize="10" FontWeight="Bold"/>
-                                                    <TextBlock Text="{Binding FfbSettings.ButtonHeadlights}" Foreground="#FFFFFF" FontSize="12" FontWeight="Bold" Margin="0,2,0,0"/>
-                                                </StackPanel>
-                                            </Border>
-                                            <Border Background="#14FFFFFF" CornerRadius="6" Padding="10,8" Margin="4,0,0,8">
-                                                <StackPanel>
-                                                    <TextBlock Text="HIGH BEAM FLASH" Foreground="{StaticResource TextMutedBrush}" FontSize="10" FontWeight="Bold"/>
-                                                    <TextBlock Text="{Binding FfbSettings.ButtonHeadlightsFlash}" Foreground="#FFFFFF" FontSize="12" FontWeight="Bold" Margin="0,2,0,0"/>
-                                                </StackPanel>
-                                            </Border>
-
-                                            <!-- Horn / Camera -->
-                                            <Border Background="#14FFFFFF" CornerRadius="6" Padding="10,8" Margin="0,0,4,8">
-                                                <StackPanel>
-                                                    <TextBlock Text="HORN" Foreground="{StaticResource TextMutedBrush}" FontSize="10" FontWeight="Bold"/>
-                                                    <TextBlock Text="{Binding FfbSettings.ButtonHorn}" Foreground="#FFFFFF" FontSize="12" FontWeight="Bold" Margin="0,2,0,0"/>
-                                                </StackPanel>
-                                            </Border>
-                                            <Border Background="#14FFFFFF" CornerRadius="6" Padding="10,8" Margin="4,0,0,8">
-                                                <StackPanel>
-                                                    <TextBlock Text="CHANGE CAMERA" Foreground="{StaticResource TextMutedBrush}" FontSize="10" FontWeight="Bold"/>
-                                                    <TextBlock Text="{Binding FfbSettings.ButtonChangeCamera}" Foreground="#FFFFFF" FontSize="12" FontWeight="Bold" Margin="0,2,0,0"/>
-                                                </StackPanel>
-                                            </Border>
-
-                                            <!-- TC / ABS -->
-                                            <Border Background="#14FFFFFF" CornerRadius="6" Padding="10,8" Margin="0,0,4,0">
-                                                <StackPanel>
-                                                    <TextBlock Text="TRACTION CONTROL (TC)" Foreground="{StaticResource TextMutedBrush}" FontSize="10" FontWeight="Bold"/>
-                                                    <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
-                                                        <TextBlock Text="UP: " Foreground="{StaticResource TextMutedBrush}" FontSize="11"/>
-                                                        <TextBlock Text="{Binding FfbSettings.ButtonTcUp}" Foreground="{StaticResource NeonRedBrightBrush}" FontSize="11" FontWeight="Bold" Margin="0,0,8,0"/>
-                                                        <TextBlock Text="DN: " Foreground="{StaticResource TextMutedBrush}" FontSize="11"/>
-                                                        <TextBlock Text="{Binding FfbSettings.ButtonTcDown}" Foreground="{StaticResource NeonRedBrightBrush}" FontSize="11" FontWeight="Bold"/>
-                                                    </StackPanel>
-                                                </StackPanel>
-                                            </Border>
-                                            <Border Background="#14FFFFFF" CornerRadius="6" Padding="10,8" Margin="4,0,0,0">
-                                                <StackPanel>
-                                                    <TextBlock Text="ANTI-LOCK BRAKES (ABS)" Foreground="{StaticResource TextMutedBrush}" FontSize="10" FontWeight="Bold"/>
-                                                    <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
-                                                        <TextBlock Text="UP: " Foreground="{StaticResource TextMutedBrush}" FontSize="11"/>
-                                                        <TextBlock Text="{Binding FfbSettings.ButtonAbsUp}" Foreground="{StaticResource CyberCyanBrush}" FontSize="11" FontWeight="Bold" Margin="0,0,8,0"/>
-                                                        <TextBlock Text="DN: " Foreground="{StaticResource TextMutedBrush}" FontSize="11"/>
-                                                        <TextBlock Text="{Binding FfbSettings.ButtonAbsDown}" Foreground="{StaticResource CyberCyanBrush}" FontSize="11" FontWeight="Bold"/>
-                                                    </StackPanel>
-                                                </StackPanel>
-                                            </Border>
-                                        </UniformGrid>
-                                    </StackPanel>
-                                </Border>
-
                             </StackPanel>
                         </Grid>
+
+                        <!-- INTERACTIVE KEY & HARDWARE BUTTON MAPPING STUDIO -->
+                        <Border Style="{StaticResource GlassPanelStyle}" Padding="22" Margin="0,0,0,20">
+                            <StackPanel>
+                                <!-- Studio Header & Filters -->
+                                <Grid Margin="0,0,0,16">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                        <TextBlock Text="INTERACTIVE KEY &amp; HARDWARE BUTTON MAPPING STUDIO" Foreground="{StaticResource NeonRedBrightBrush}" FontSize="14" FontWeight="Bold"/>
+                                        <TextBlock Text="DirectInput Wheel buttons, XInput gamepad buttons, and keyboard shortcuts matrix with live hardware listening" Foreground="{StaticResource TextSecondaryBrush}" FontSize="11" Margin="0,2,0,0"/>
+                                    </StackPanel>
+
+                                    <!-- Combine with keyboard checkbox -->
+                                    <CheckBox Grid.Column="1" 
+                                              Content="COMBINE WITH KEYBOARD (ใช้คีย์บอร์ดร่วมกับพวงมาลัย/จอย)" 
+                                              IsChecked="{Binding FfbSettings.CombineWithKeyboard, Mode=TwoWay}" 
+                                              Foreground="{StaticResource CyberCyanBrush}" 
+                                              FontSize="11" FontWeight="Bold" 
+                                              VerticalAlignment="Center" 
+                                              Margin="0,0,16,0"/>
+
+                                    <!-- Search Box -->
+                                    <Grid Grid.Column="2" Width="220" VerticalAlignment="Center">
+                                        <TextBox Style="{StaticResource FuturisticTextBoxStyle}"
+                                                 Text="{Binding ControlSearchQuery, UpdateSourceTrigger=PropertyChanged}"
+                                                 FontSize="11"
+                                                 Padding="26,6,8,6"/>
+                                        <TextBlock Text="🔍" FontSize="10" Foreground="{StaticResource TextMutedBrush}"
+                                                   VerticalAlignment="Center" HorizontalAlignment="Left" Margin="8,0,0,0" IsHitTestVisible="False"/>
+                                    </Grid>
+                                </Grid>
+
+                                <!-- Category Filter Bar -->
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,16">
+                                    <RadioButton Content="ALL CONTROLS" GroupName="ControlCategoryGroup" Style="{StaticResource FilterPillStyle}" Tag="ALL" IsChecked="True" Click="BtnControlCategory_Click"/>
+                                    <RadioButton Content="⚙️ SHIFTER &amp; GEARS" GroupName="ControlCategoryGroup" Style="{StaticResource FilterPillStyle}" Tag="SHIFTER &amp; GEARS" Click="BtnControlCategory_Click"/>
+                                    <RadioButton Content="💡 LIGHTS &amp; COCKPIT" GroupName="ControlCategoryGroup" Style="{StaticResource FilterPillStyle}" Tag="LIGHTS &amp; COCKPIT" Click="BtnControlCategory_Click"/>
+                                    <RadioButton Content="✨ CSP EXTRAS (A-F)" GroupName="ControlCategoryGroup" Style="{StaticResource FilterPillStyle}" Tag="CSP EXTRAS" Click="BtnControlCategory_Click"/>
+                                    <RadioButton Content="⚡ ELECTRONICS &amp; TURBO" GroupName="ControlCategoryGroup" Style="{StaticResource FilterPillStyle}" Tag="ELECTRONICS" Click="BtnControlCategory_Click"/>
+                                    <RadioButton Content="🎥 CAMERA &amp; PITS" GroupName="ControlCategoryGroup" Style="{StaticResource FilterPillStyle}" Tag="CAMERA &amp; SESSION" Click="BtnControlCategory_Click"/>
+                                </StackPanel>
+
+                                <!-- Action Bindings ItemsControl -->
+                                <ItemsControl ItemsSource="{Binding FilteredActionBindings}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Background="#121622" BorderBrush="#22FFFFFF" BorderThickness="1" CornerRadius="8" Padding="14,10" Margin="0,0,0,8">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                        <ColumnDefinition Width="135"/>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                    </Grid.ColumnDefinitions>
+
+                                                    <!-- Action Info -->
+                                                    <StackPanel Grid.Column="0" VerticalAlignment="Center" Margin="0,0,14,0">
+                                                        <StackPanel Orientation="Horizontal" Margin="0,0,0,3">
+                                                            <Border Background="#22FF1E40" BorderBrush="#66FF1E40" BorderThickness="1" CornerRadius="4" Padding="6,2" Margin="0,0,6,0">
+                                                                <TextBlock Text="{Binding Category}" Foreground="{StaticResource NeonRedBrightBrush}" FontSize="9" FontWeight="Bold"/>
+                                                            </Border>
+                                                            <Border Background="#1400E5FF" BorderBrush="#3300E5FF" BorderThickness="1" CornerRadius="4" Padding="6,2">
+                                                                <TextBlock Text="{Binding SectionName, StringFormat='[{0}]'}" Foreground="{StaticResource CyberCyanBrush}" FontSize="9" FontWeight="SemiBold"/>
+                                                            </Border>
+                                                        </StackPanel>
+                                                        <TextBlock Text="{Binding DisplayName}" Foreground="#FFFFFF" FontSize="13" FontWeight="Bold"/>
+                                                        <TextBlock Text="{Binding ThaiDescription}" Foreground="{StaticResource TextSecondaryBrush}" FontSize="11" Margin="0,1,0,0"/>
+                                                    </StackPanel>
+
+                                                    <!-- DirectInput Wheel Button Stepper -->
+                                                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,12,0">
+                                                        <Button Click="BtnWheelBtnDec_Click" Tag="{Binding}" Style="{StaticResource GlassSecondaryButtonStyle}" Width="28" Height="28" Padding="0" Content="-" FontWeight="Bold" FontSize="13" Margin="0,0,4,0"/>
+                                                        <Border Background="#0D1018" BorderBrush="#3300E5FF" BorderThickness="1" CornerRadius="6" Padding="10,5" MinWidth="140" HorizontalAlignment="Center">
+                                                            <TextBlock Text="{Binding WheelBindingDisplay}" Foreground="{StaticResource CyberCyanBrush}" FontSize="11" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                        </Border>
+                                                        <Button Click="BtnWheelBtnInc_Click" Tag="{Binding}" Style="{StaticResource GlassSecondaryButtonStyle}" Width="28" Height="28" Padding="0" Content="+" FontWeight="Bold" FontSize="13" Margin="4,0,0,0"/>
+                                                    </StackPanel>
+
+                                                    <!-- Keyboard Key Badge -->
+                                                    <Border Grid.Column="2" Background="#0D1018" BorderBrush="#33FFFFFF" BorderThickness="1" CornerRadius="6" Padding="10,5" MinWidth="110" VerticalAlignment="Center" Margin="0,0,12,0">
+                                                        <TextBlock Text="{Binding KeyBindingDisplay, StringFormat='KEY: {0}'}" Foreground="#FFFFFF" FontSize="11" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                    </Border>
+
+                                                    <!-- Gamepad XInput ComboBox -->
+                                                    <ComboBox Grid.Column="3" 
+                                                              Style="{StaticResource FuturisticComboBoxStyle}"
+                                                              ItemsSource="{Binding DataContext.AvailableXboxButtons, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                              SelectedItem="{Binding XboxButton, Mode=TwoWay}"
+                                                              DropDownClosed="CmbXboxButton_DropDownClosed"
+                                                              VerticalAlignment="Center"
+                                                              Margin="0,0,12,0"/>
+
+                                                    <!-- Interactive Capture Button -->
+                                                    <Button Grid.Column="4" 
+                                                            Click="BtnBindControlAction_Click" 
+                                                            Tag="{Binding}" 
+                                                            Style="{StaticResource NeonLaunchButtonStyle}" 
+                                                            Padding="14,6" 
+                                                            FontSize="11"
+                                                            VerticalAlignment="Center" 
+                                                            Margin="0,0,8,0">
+                                                        <TextBlock Text="{Binding CaptureButtonText}" FontWeight="Bold"/>
+                                                    </Button>
+
+                                                    <!-- Clear Button -->
+                                                    <Button Grid.Column="5" 
+                                                            Click="BtnClearControlAction_Click" 
+                                                            Tag="{Binding}" 
+                                                            Style="{StaticResource GlassSecondaryButtonStyle}" 
+                                                            Width="30" Height="28" Padding="0" 
+                                                            Content="✕" 
+                                                            Foreground="{StaticResource TextMutedBrush}"
+                                                            VerticalAlignment="Center"/>
+                                                </Grid>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </Border>
                     </StackPanel>
                 </ScrollViewer>
 
