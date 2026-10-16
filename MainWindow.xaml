@@ -1320,56 +1320,86 @@
                     </StackPanel>
                 </ScrollViewer>
 
-                <!-- TAB: ONLINE MULTIPLAYER MATRIX (LIVE SERVER BROWSER + DIRECT DISPATCH) -->
-                <Grid Visibility="{Binding IsOnlineTab, Converter={StaticResource BoolToVis}}" Margin="40,24">
+                <!-- TAB: ONLINE MULTIPLAYER MATRIX (FULL SERVER BROWSER + PRE-JOIN MISSING MOD CHECKER) -->
+                <Grid Visibility="{Binding IsOnlineTab, Converter={StaticResource BoolToVis}}" Margin="36,24">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="*"/>
                     </Grid.RowDefinitions>
 
-                    <Grid Grid.Row="0" Margin="0,0,0,20">
-                        <StackPanel>
-                            <TextBlock Text="ONLINE MATRIX // SERVER DIRECTORY &amp; DISPATCH" Foreground="{StaticResource NeonRedBrightBrush}" FontSize="12" FontWeight="Bold"/>
+                    <!-- Header Row -->
+                    <Grid Grid.Row="0" Margin="0,0,0,18">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel Grid.Column="0">
+                            <TextBlock Text="ONLINE MATRIX // FULL SERVER BROWSER &amp; PRE-JOIN MOD VERIFIER" Foreground="{StaticResource NeonRedBrightBrush}" FontSize="12" FontWeight="Bold"/>
                             <TextBlock Text="HIGH-PERFORMANCE MULTIPLAYER" Foreground="#FFFFFF" FontSize="26" FontWeight="Black"/>
-                            <TextBlock Text="Browse live servers parsed from Content Manager bookmarks or enter direct IP for zero-latency dispatch." Foreground="{StaticResource TextSecondaryBrush}" FontSize="13"/>
+                            <TextBlock Text="Real-time server probing, automatic pre-join missing mod detection, 1-click CDN mod downloader, and entry-list car slot selector." Foreground="{StaticResource TextSecondaryBrush}" FontSize="13"/>
                         </StackPanel>
 
-                        <Button Click="BtnRefreshServers_Click" Style="{StaticResource GlassSecondaryButtonStyle}" Padding="16,8" HorizontalAlignment="Right" VerticalAlignment="Center">
-                            <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="⟳" FontSize="14" Margin="0,0,6,0" VerticalAlignment="Center"/>
-                                <TextBlock Text="REFRESH SERVERS" FontSize="11" FontWeight="Bold" VerticalAlignment="Center"/>
-                            </StackPanel>
-                        </Button>
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                            <Button Click="BtnScanServerMods_Click" Style="{StaticResource GlassSecondaryButtonStyle}" Padding="14,10" Margin="0,0,10,0">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="🔍" FontSize="12" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                                    <TextBlock Text="SCAN SERVER MODS" FontSize="11" FontWeight="Bold" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Button>
+
+                            <Button Click="BtnRefreshServers_Click" Style="{StaticResource NeonLaunchButtonStyle}" Padding="16,10">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="⟳" FontSize="14" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                                    <TextBlock Text="REFRESH ALL SERVERS" FontSize="11" FontWeight="Black" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Button>
+                        </StackPanel>
                     </Grid>
 
                     <Grid Grid.Row="1">
                         <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="1.4*"/>
-                            <ColumnDefinition Width="1*"/>
+                            <ColumnDefinition Width="1.25*"/>
+                            <ColumnDefinition Width="1.15*"/>
                         </Grid.ColumnDefinitions>
 
-                        <!-- Left: Live Server Browser List -->
-                        <Border Grid.Column="0" Style="{StaticResource GlassPanelStyle}" Padding="20" Margin="0,0,20,0">
+                        <!-- Left: Live Server Browser List + Search & Add Custom Server -->
+                        <Border Grid.Column="0" Style="{StaticResource GlassPanelStyle}" Padding="20" Margin="0,0,16,0">
                             <Grid>
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
                                     <RowDefinition Height="*"/>
+                                    <RowDefinition Height="Auto"/>
                                 </Grid.RowDefinitions>
 
-                                <Grid Grid.Row="0" Margin="0,0,0,14">
-                                    <TextBlock Text="BOOKMARKED &amp; ACTIVE SERVERS" Foreground="{StaticResource NeonRedBrightBrush}" FontSize="12" FontWeight="Bold" VerticalAlignment="Center"/>
-                                    <Border HorizontalAlignment="Right" Style="{StaticResource RedBadgeStyle}">
-                                        <TextBlock Text="{Binding OnlineServers.Count, StringFormat='{}{0} BOOKMARKS'}" Foreground="{StaticResource NeonRedBrightBrush}" FontSize="10" FontWeight="Bold"/>
-                                    </Border>
+                                <!-- Title & Count -->
+                                <Grid Grid.Row="0" Margin="0,0,0,12">
+                                    <TextBlock Text="BOOKMARKED &amp; LIVE SERVERS" Foreground="{StaticResource NeonRedBrightBrush}" FontSize="12" FontWeight="Bold" VerticalAlignment="Center"/>
+                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                        <CheckBox Content="READY ONLY" IsChecked="{Binding OnlyShowReadyServers, Mode=TwoWay}" Foreground="{StaticResource CyberCyanBrush}" FontSize="11" FontWeight="Bold" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                                        <Border Style="{StaticResource RedBadgeStyle}">
+                                            <TextBlock Text="{Binding FilteredOnlineServers.Count, StringFormat='{}{0} SERVERS'}" Foreground="{StaticResource NeonRedBrightBrush}" FontSize="10" FontWeight="Bold"/>
+                                        </Border>
+                                    </StackPanel>
                                 </Grid>
 
-                                <ListBox Grid.Row="1" ItemsSource="{Binding OnlineServers}" SelectedItem="{Binding SelectedOnlineServer}"
+                                <!-- Search Filter Bar -->
+                                <Grid Grid.Row="1" Margin="0,0,0,12">
+                                    <TextBox Text="{Binding OnlineServerSearchQuery, UpdateSourceTrigger=PropertyChanged}"
+                                             Style="{StaticResource FuturisticTextBoxStyle}"
+                                             Tag="Search server name, track, or IP..."/>
+                                </Grid>
+
+                                <!-- Server List -->
+                                <ListBox Grid.Row="2" ItemsSource="{Binding FilteredOnlineServers}" SelectedItem="{Binding SelectedOnlineServer}"
                                          Background="Transparent" BorderThickness="0" ScrollViewer.VerticalScrollBarVisibility="Auto">
                                     <ListBox.ItemContainerStyle>
                                         <Style TargetType="{x:Type ListBoxItem}">
                                             <Setter Property="Background" Value="Transparent"/>
-                                            <Setter Property="Padding" Value="4"/>
+                                            <Setter Property="Padding" Value="2"/>
                                             <Setter Property="Margin" Value="0,0,0,8"/>
+                                            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
                                             <Setter Property="Template">
                                                 <Setter.Value>
                                                     <ControlTemplate TargetType="{x:Type ListBoxItem}">
@@ -1402,15 +1432,18 @@
 
                                                 <StackPanel Grid.Column="0" VerticalAlignment="Center">
                                                     <TextBlock Text="{Binding Name}" Foreground="#FFFFFF" FontWeight="Bold" FontSize="13" TextTrimming="CharacterEllipsis"/>
-                                                    <StackPanel Orientation="Horizontal" Margin="0,3,0,0">
+                                                    <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
                                                         <TextBlock Text="{Binding Track}" Foreground="{StaticResource CyberCyanBrush}" FontSize="11" FontWeight="SemiBold"/>
                                                         <TextBlock Text=" • " Foreground="{StaticResource TextMutedBrush}" Margin="4,0"/>
                                                         <TextBlock Text="{Binding AddressDisplay}" Foreground="{StaticResource TextMutedBrush}" FontSize="11"/>
                                                     </StackPanel>
                                                 </StackPanel>
 
-                                                <!-- Players & Ping -->
-                                                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="12,0">
+                                                <!-- Readiness, Players & Ping -->
+                                                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="10,0">
+                                                    <Border Background="#18FFFFFF" BorderBrush="#33FFFFFF" BorderThickness="1" CornerRadius="4" Padding="6,2" Margin="0,0,6,0">
+                                                        <TextBlock Text="{Binding ReadinessBadge}" Foreground="#FFFFFF" FontSize="10" FontWeight="Bold"/>
+                                                    </Border>
                                                     <Border Background="#1400E5FF" BorderBrush="#3300E5FF" BorderThickness="1" CornerRadius="4" Padding="6,2" Margin="0,0,6,0">
                                                         <TextBlock Text="{Binding PlayersDisplay}" Foreground="{StaticResource CyberCyanBrush}" FontSize="10" FontWeight="Bold"/>
                                                     </Border>
@@ -1427,57 +1460,147 @@
                                         </DataTemplate>
                                     </ListBox.ItemTemplate>
                                 </ListBox>
+
+                                <!-- Bottom: Add Custom Server IP:HTTP_PORT -->
+                                <Border Grid.Row="3" Background="#12FFFFFF" CornerRadius="8" Padding="10" Margin="0,10,0,0">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="ADD SERVER (IP:HTTP_PORT):" Foreground="{StaticResource TextMutedBrush}" FontSize="10" FontWeight="Bold" VerticalAlignment="Center" Margin="4,0,10,0"/>
+                                        <TextBox Grid.Column="1" x:Name="TxtCustomServerAddress" Text="15.235.228.96:63001" Style="{StaticResource FuturisticTextBoxStyle}" Margin="0,0,8,0"/>
+                                        <Button Grid.Column="2" Click="BtnAddCustomServer_Click" Style="{StaticResource GlassSecondaryButtonStyle}" Padding="14,6">
+                                            <TextBlock Text="+ PROBE &amp; ADD" FontSize="11" FontWeight="Bold"/>
+                                        </Button>
+                                    </Grid>
+                                </Border>
                             </Grid>
                         </Border>
 
-                        <!-- Right: Direct Connect Form & Assigned Vehicle -->
-                        <StackPanel Grid.Column="1">
-                            <Border Style="{StaticResource GlassPanelStyle}" Padding="24" Margin="0,0,0,16">
-                                <StackPanel>
-                                    <TextBlock Text="DIRECT CONNECTION DISPATCH" Foreground="{StaticResource NeonRedBrightBrush}" FontSize="12" FontWeight="Bold" Margin="0,0,0,16"/>
+                        <!-- Right: Pre-Join Missing Mod Checker + Entry List Slot Picker + Direct Dispatch -->
+                        <ScrollViewer Grid.Column="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                            <StackPanel>
 
-                                    <TextBlock Text="REMOTE HOST ADDRESS (IP / DOMAIN)" Foreground="{StaticResource TextSecondaryBrush}" FontSize="11" FontWeight="Bold" Margin="0,0,0,4"/>
-                                    <TextBox Text="{Binding OnlineServerIp, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource FuturisticTextBoxStyle}" Margin="0,0,0,12"/>
+                                <!-- CARD 1: PRE-JOIN MISSING MOD CHECKER & ENTRY SLOT SELECTOR -->
+                                <Border Style="{StaticResource GlassPanelStyle}" Padding="20" Margin="0,0,0,16" BorderBrush="#3300E5FF">
+                                    <StackPanel>
+                                        <Grid Margin="0,0,0,12">
+                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                <TextBlock Text="🛡️" FontSize="15" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                                                <TextBlock Text="PRE-JOIN MOD VERIFIER &amp; SLOT MATRIX" Foreground="{StaticResource NeonRedBrightBrush}" FontSize="12" FontWeight="Bold" VerticalAlignment="Center"/>
+                                            </StackPanel>
+                                            <Border HorizontalAlignment="Right" Background="#1400E5FF" BorderBrush="#3300E5FF" BorderThickness="1" CornerRadius="4" Padding="8,2">
+                                                <TextBlock Text="{Binding SelectedOnlineServer.ReadinessBadge, FallbackValue='NO SERVER'}" Foreground="{StaticResource CyberCyanBrush}" FontSize="10" FontWeight="Bold"/>
+                                            </Border>
+                                        </Grid>
 
-                                    <Grid Margin="0,0,0,12">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="*"/>
-                                        </Grid.ColumnDefinitions>
-                                        <StackPanel Grid.Column="0" Margin="0,0,6,0">
-                                            <TextBlock Text="PORT" Foreground="{StaticResource TextSecondaryBrush}" FontSize="11" FontWeight="Bold" Margin="0,0,0,4"/>
-                                            <TextBox Text="{Binding OnlineServerPort, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource FuturisticTextBoxStyle}"/>
-                                        </StackPanel>
-                                        <StackPanel Grid.Column="1" Margin="6,0,0,0">
-                                            <TextBlock Text="PASSWORD" Foreground="{StaticResource TextSecondaryBrush}" FontSize="11" FontWeight="Bold" Margin="0,0,0,4"/>
-                                            <TextBox Text="{Binding OnlinePassword, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource FuturisticTextBoxStyle}"/>
-                                        </StackPanel>
-                                    </Grid>
+                                        <!-- 3-Point Pre-Join Diagnostic Summary -->
+                                        <Border Background="#12FFFFFF" CornerRadius="8" Padding="12,10" Margin="0,0,0,12">
+                                            <StackPanel>
+                                                <TextBlock Text="{Binding SelectedOnlineServer.TrackStatusDisplay, FallbackValue='Select a server to verify track installation'}" Foreground="#FFFFFF" FontSize="11" FontWeight="Bold" Margin="0,0,0,4"/>
+                                                <TextBlock Text="{Binding SelectedOnlineServer.CspStatusDisplay, FallbackValue='CSP version requirement check ready'}" Foreground="{StaticResource CyberCyanBrush}" FontSize="11" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                                                <TextBlock Text="{Binding SelectedOnlineServer.CarsStatusDisplay, FallbackValue='Vehicle entry list check ready'}" Foreground="{StaticResource TextSecondaryBrush}" FontSize="11" FontWeight="SemiBold"/>
+                                            </StackPanel>
+                                        </Border>
 
-                                    <TextBlock Text="CALLSIGN / PILOT NAME" Foreground="{StaticResource TextSecondaryBrush}" FontSize="11" FontWeight="Bold" Margin="0,0,0,4"/>
-                                    <TextBox Text="{Binding OnlinePilotName, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource FuturisticTextBoxStyle}" Margin="0,0,0,20"/>
+                                        <!-- 1-Click Missing Mod Auto-Downloader + Progress Bar -->
+                                        <Button Click="BtnDownloadMissingServerMods_Click"
+                                                Style="{StaticResource NeonLaunchButtonStyle}"
+                                                Padding="14,10"
+                                                Margin="0,0,0,10"
+                                                HorizontalAlignment="Stretch">
+                                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                                <TextBlock Text="📥" FontSize="13" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                                                <TextBlock Text="AUTO-DOWNLOAD &amp; INSTALL MISSING SERVER MODS" FontSize="11" FontWeight="Black" VerticalAlignment="Center"/>
+                                            </StackPanel>
+                                        </Button>
 
-                                    <Button Click="BtnLaunchOnline_Click" Style="{StaticResource NeonLaunchButtonStyle}" Padding="20,12" HorizontalAlignment="Stretch">
-                                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                                            <TextBlock Text="⚡" FontSize="14" Margin="0,0,8,0" VerticalAlignment="Center"/>
-                                            <TextBlock Text="CONNECT TO ONLINE SERVER" FontSize="12" FontWeight="Black" VerticalAlignment="Center"/>
-                                        </StackPanel>
-                                    </Button>
-                                </StackPanel>
-                            </Border>
+                                        <ProgressBar Minimum="0" Maximum="100" Value="{Binding ServerModDownloadProgress}" Height="6" Background="#14FFFFFF" Foreground="{StaticResource CyberCyanBrush}" BorderThickness="0" Margin="0,0,0,4"/>
+                                        <TextBlock Text="{Binding ServerModDownloadStatus}" Foreground="{StaticResource TextMutedBrush}" FontSize="10" FontWeight="Bold" Margin="0,0,0,12"/>
 
-                            <!-- Active Assigned Vehicle Preview -->
-                            <Border Style="{StaticResource GlassPanelStyle}" Padding="20">
-                                <StackPanel>
-                                    <TextBlock Text="ASSIGNED VEHICLE" Foreground="{StaticResource NeonRedBrightBrush}" FontSize="11" FontWeight="Bold" Margin="0,0,0,10"/>
-                                    <Border CornerRadius="8" Background="#0A0D14" Height="140" ClipToBounds="True" Margin="0,0,0,10">
-                                        <Image Source="{Binding SelectedCar.PreviewImagePath, Converter={StaticResource ImgConverter}, ConverterParameter=600}" Stretch="UniformToFill"/>
-                                    </Border>
-                                    <TextBlock Text="{Binding SelectedCar.DisplayTitle}" Foreground="#FFFFFF" FontSize="15" FontWeight="Bold" TextTrimming="CharacterEllipsis"/>
-                                    <TextBlock Text="{Binding SelectedCar.DisplayBrand}" Foreground="{StaticResource NeonRedBrightBrush}" FontSize="11" FontWeight="SemiBold"/>
-                                </StackPanel>
-                            </Border>
-                        </StackPanel>
+                                        <!-- Server Entry List Car Slots -->
+                                        <TextBlock Text="SERVER ENTRY LIST // SELECT AVAILABLE CAR SLOT TO DRIVE:" Foreground="{StaticResource TextSecondaryBrush}" FontSize="10" FontWeight="Bold" Margin="0,0,0,6"/>
+                                        <Border Background="#0C0F16" BorderBrush="#1FFFFFFF" BorderThickness="1" CornerRadius="8" Height="175" Padding="6">
+                                            <ListBox ItemsSource="{Binding SelectedOnlineServer.CarSlots}"
+                                                     SelectedItem="{Binding SelectedServerCarSlot, Mode=TwoWay}"
+                                                     Background="Transparent"
+                                                     BorderThickness="0"
+                                                     ScrollViewer.VerticalScrollBarVisibility="Auto">
+                                                <ListBox.ItemContainerStyle>
+                                                    <Style TargetType="{x:Type ListBoxItem}">
+                                                        <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                                                        <Setter Property="Padding" Value="6,4"/>
+                                                        <Setter Property="Margin" Value="0,0,0,4"/>
+                                                        <Setter Property="Background" Value="#10FFFFFF"/>
+                                                    </Style>
+                                                </ListBox.ItemContainerStyle>
+                                                <ListBox.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <Grid>
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="*"/>
+                                                                <ColumnDefinition Width="Auto"/>
+                                                                <ColumnDefinition Width="Auto"/>
+                                                            </Grid.ColumnDefinitions>
+                                                            <TextBlock Grid.Column="0" Text="{Binding DisplayName}" Foreground="#FFFFFF" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                                                            <Border Grid.Column="1" Background="#1400E5FF" CornerRadius="4" Padding="6,2" Margin="6,0">
+                                                                <TextBlock Text="{Binding SlotBadge}" Foreground="{StaticResource CyberCyanBrush}" FontSize="9" FontWeight="Bold"/>
+                                                            </Border>
+                                                            <Border Grid.Column="2" Background="#14FFFFFF" CornerRadius="4" Padding="6,2">
+                                                                <TextBlock Text="{Binding InstallStatusBadge}" Foreground="#E2E8F0" FontSize="9" FontWeight="Bold"/>
+                                                            </Border>
+                                                        </Grid>
+                                                    </DataTemplate>
+                                                </ListBox.ItemTemplate>
+                                            </ListBox>
+                                        </Border>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- CARD 2: DIRECT CONNECTION & DISPATCH -->
+                                <Border Style="{StaticResource GlassPanelStyle}" Padding="20">
+                                    <StackPanel>
+                                        <TextBlock Text="DIRECT CONNECTION DISPATCH" Foreground="{StaticResource NeonRedBrightBrush}" FontSize="12" FontWeight="Bold" Margin="0,0,0,12"/>
+
+                                        <TextBlock Text="REMOTE HOST ADDRESS (IP / DOMAIN)" Foreground="{StaticResource TextSecondaryBrush}" FontSize="10" FontWeight="Bold" Margin="0,0,0,4"/>
+                                        <TextBox Text="{Binding OnlineServerIp, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource FuturisticTextBoxStyle}" Margin="0,0,0,10"/>
+
+                                        <Grid Margin="0,0,0,10">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <StackPanel Grid.Column="0" Margin="0,0,4,0">
+                                                <TextBlock Text="GAME PORT" Foreground="{StaticResource TextSecondaryBrush}" FontSize="10" FontWeight="Bold" Margin="0,0,0,4"/>
+                                                <TextBox Text="{Binding OnlineServerPort, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource FuturisticTextBoxStyle}"/>
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="1" Margin="4,0,4,0">
+                                                <TextBlock Text="HTTP PORT" Foreground="{StaticResource TextSecondaryBrush}" FontSize="10" FontWeight="Bold" Margin="0,0,0,4"/>
+                                                <TextBox Text="{Binding OnlineServerHttpPort, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource FuturisticTextBoxStyle}"/>
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="2" Margin="4,0,0,0">
+                                                <TextBlock Text="PASSWORD" Foreground="{StaticResource TextSecondaryBrush}" FontSize="10" FontWeight="Bold" Margin="0,0,0,4"/>
+                                                <TextBox Text="{Binding OnlinePassword, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource FuturisticTextBoxStyle}"/>
+                                            </StackPanel>
+                                        </Grid>
+
+                                        <TextBlock Text="CALLSIGN / PILOT NAME" Foreground="{StaticResource TextSecondaryBrush}" FontSize="10" FontWeight="Bold" Margin="0,0,0,4"/>
+                                        <TextBox Text="{Binding OnlinePilotName, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource FuturisticTextBoxStyle}" Margin="0,0,0,14"/>
+
+                                        <Button Click="BtnLaunchOnline_Click" Style="{StaticResource NeonLaunchButtonStyle}" Padding="20,12" HorizontalAlignment="Stretch">
+                                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                                <TextBlock Text="⚡" FontSize="14" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                                                <TextBlock Text="CONNECT TO ONLINE SERVER" FontSize="12" FontWeight="Black" VerticalAlignment="Center"/>
+                                            </StackPanel>
+                                        </Button>
+                                    </StackPanel>
+                                </Border>
+
+                            </StackPanel>
+                        </ScrollViewer>
                     </Grid>
                 </Grid>
 
@@ -1649,6 +1772,70 @@
                                     <CheckBox Content="MASTER CSP ENABLED" IsChecked="{Binding CspSettings.MasterEnabled, Mode=TwoWay}" Foreground="{StaticResource NeonRedBrightBrush}" FontWeight="ExtraBold" FontSize="13" VerticalAlignment="Center"/>
                                 </StackPanel>
                             </Grid>
+                        </Border>
+
+                        <!-- CSP Cloud Auto-Installer & Version Manager Card -->
+                        <Border Style="{StaticResource GlassPanelStyle}" Padding="22" Margin="0,0,0,24" BorderBrush="#4400E5FF" Background="#1209121D">
+                            <StackPanel>
+                                <Grid Margin="0,0,0,14">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <StackPanel Grid.Column="0">
+                                        <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                                            <TextBlock Text="☁" Foreground="{StaticResource CyberCyanBrush}" FontSize="15" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                                            <TextBlock Text="CSP CLOUD AUTO-INSTALLER &amp; VERSION UPDATER" Foreground="{StaticResource CyberCyanBrush}" FontSize="13" FontWeight="Black" VerticalAlignment="Center"/>
+                                            <Border Background="#1A00E676" BorderBrush="#4400E676" BorderThickness="1" CornerRadius="4" Padding="8,2" Margin="12,0,0,0">
+                                                <TextBlock Text="{Binding CspSettings.UpdateStatusDisplay}" Foreground="#00E676" FontSize="10" FontWeight="Bold"/>
+                                            </Border>
+                                        </StackPanel>
+                                        <TextBlock Text="Download and deploy official Custom Shaders Patch builds directly from acstuff.club without leaving AcVelocity." Foreground="{StaticResource TextSecondaryBrush}" FontSize="12"/>
+                                    </StackPanel>
+
+                                    <Button Grid.Column="1" Click="BtnOneClickUpdateCsp_Click" Style="{StaticResource GlassSecondaryButtonStyle}" BorderBrush="#6600E5FF" Padding="16,10" VerticalAlignment="Center" ToolTip="Automatically download and install the latest recommended CSP release (v0.2.11)">
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Text="⚡" Foreground="{StaticResource CyberCyanBrush}" FontSize="13" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                                            <TextBlock Text="1-CLICK UPDATE TO RECOMMENDED (v0.2.11)" Foreground="#FFFFFF" FontSize="11" FontWeight="Black" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                    </Button>
+                                </Grid>
+
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <StackPanel Grid.Column="0" Margin="0,0,14,0">
+                                        <TextBlock Text="SELECT TARGET CSP VERSION // BUILD CATALOG" Foreground="{StaticResource TextSecondaryBrush}" FontSize="10" FontWeight="Bold" Margin="0,0,0,6"/>
+                                        <ComboBox ItemsSource="{Binding CspSettings.AvailableVersions}"
+                                                  SelectedItem="{Binding SelectedCspVersion, Mode=TwoWay}"
+                                                  DisplayMemberPath="DisplayTitle"
+                                                  Style="{StaticResource FuturisticComboBoxStyle}"/>
+                                    </StackPanel>
+
+                                    <Button Grid.Column="1" Click="BtnAutoInstallCsp_Click" Style="{StaticResource NeonLaunchButtonStyle}" Padding="24,12" VerticalAlignment="Bottom">
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Text="⇩" FontSize="14" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                                            <TextBlock Text="DOWNLOAD &amp; INSTALL SELECTED CSP" FontSize="12" FontWeight="Black" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                    </Button>
+                                </Grid>
+
+                                <!-- Live CSP Download Progress Bar -->
+                                <Border Background="#18000000" BorderBrush="#3300E5FF" BorderThickness="1" CornerRadius="6" Padding="14,10" Margin="0,14,0,0"
+                                        Visibility="{Binding IsDownloadingCsp, Converter={StaticResource BoolToVis}}">
+                                    <StackPanel>
+                                        <Grid Margin="0,0,0,6">
+                                            <TextBlock Text="{Binding CspDownloadStatusText}" Foreground="{StaticResource CyberCyanBrush}" FontSize="11" FontWeight="Bold"/>
+                                            <TextBlock Text="{Binding CspDownloadProgress, StringFormat='{}{0:0}%'}" Foreground="#FFFFFF" FontSize="11" FontWeight="Black" HorizontalAlignment="Right"/>
+                                        </Grid>
+                                        <ProgressBar Value="{Binding CspDownloadProgress}" Minimum="0" Maximum="100" Height="6" Background="#22FFFFFF" Foreground="{StaticResource CyberCyanBrush}" BorderThickness="0"/>
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
                         </Border>
 
                         <!-- 6 Core Feature Panels in Responsive Grid -->

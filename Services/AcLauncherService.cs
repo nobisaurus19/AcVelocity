@@ -183,10 +183,18 @@ namespace AcVelocity.Services
             int serverPort,
             string password,
             CarInfo car,
-            string pilotName)
+            string pilotName,
+            int serverHttpPort = 0,
+            string serverName = "",
+            string? carIdOverride = null,
+            string? skinOverride = null)
         {
             var cfgDir = GetCfgDirectory();
             var raceIniPath = Path.Combine(cfgDir, "race.ini");
+
+            string targetCarId = !string.IsNullOrWhiteSpace(carIdOverride) ? carIdOverride.Trim() : car.Id;
+            string targetSkin = !string.IsNullOrWhiteSpace(skinOverride) ? skinOverride.Trim() : car.SelectedSkin;
+            int httpPort = serverHttpPort > 0 ? serverHttpPort : serverPort;
 
             var sb = new StringBuilder();
             sb.AppendLine("[HEADER]");
@@ -194,26 +202,31 @@ namespace AcVelocity.Services
             sb.AppendLine();
 
             sb.AppendLine("[RACE]");
-            sb.AppendLine($"MODEL={car.Id}");
+            sb.AppendLine($"MODEL={targetCarId}");
             sb.AppendLine("CARS=1");
-            sb.AppendLine($"SKIN={car.SelectedSkin}");
+            sb.AppendLine($"SKIN={targetSkin}");
             sb.AppendLine();
 
             sb.AppendLine("[REMOTE]");
             sb.AppendLine("ACTIVE=1");
             sb.AppendLine($"SERVER_IP={serverIp.Trim()}");
             sb.AppendLine($"SERVER_PORT={serverPort}");
+            sb.AppendLine($"SERVER_HTTP_PORT={httpPort}");
+            if (!string.IsNullOrWhiteSpace(serverName))
+            {
+                sb.AppendLine($"SERVER_NAME={serverName.Trim()}");
+            }
             sb.AppendLine($"NAME={pilotName.Trim()}");
             sb.AppendLine("TEAM=Velocity Racing");
             sb.AppendLine("GUID=");
-            sb.AppendLine($"REQUESTED_CAR={car.Id}");
+            sb.AppendLine($"REQUESTED_CAR={targetCarId}");
             sb.AppendLine($"PASSWORD={password.Trim()}");
             sb.AppendLine();
 
             sb.AppendLine("[CAR_0]");
             sb.AppendLine("SETUP=");
-            sb.AppendLine($"SKIN={car.SelectedSkin}");
-            sb.AppendLine($"MODEL={car.Id}");
+            sb.AppendLine($"SKIN={targetSkin}");
+            sb.AppendLine($"MODEL={targetCarId}");
             sb.AppendLine("MODEL_CONFIG=");
             sb.AppendLine($"DRIVER_NAME={pilotName.Trim()}");
             sb.AppendLine("NATIONALITY=THA");

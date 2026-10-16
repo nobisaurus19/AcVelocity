@@ -4,6 +4,8 @@ using System.Globalization;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
+using System.Net.Http;
+using System.Text.Json;
 using System.Threading.Tasks;
 using AcVelocity.Models;
 
@@ -11,6 +13,16 @@ namespace AcVelocity.Services
 {
     public class CspService
     {
+        private static readonly HttpClient _http = new()
+        {
+            Timeout = TimeSpan.FromMinutes(10)
+        };
+
+        static CspService()
+        {
+            _http.DefaultRequestHeaders.UserAgent.ParseAdd("AcVelocity-Nexus/2.5 (Windows NT 10.0; Win64; x64)");
+        }
+
         public string GetExtensionConfigDir()
         {
             var myDocs = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
@@ -27,11 +39,93 @@ namespace AcVelocity.Services
             return path1;
         }
 
+        public List<CspVersionInfo> LoadAvailableVersions()
+        {
+            var versions = new List<CspVersionInfo>();
+
+            // 1. Try reading Content Manager's cached Patch Manifest.json if present
+            try
+            {
+                var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+                var manifestPath = Path.Combine(localAppData, "AcTools Content Manager", "Temporary", "Patch", "Manifest.json");
+                if (File.Exists(manifestPath))
+                {
+                    var json = File.ReadAllText(manifestPath);
+                    using var doc = JsonDocument.Parse(json);
+                    if (doc.RootElement.ValueKind == JsonValueKind.Array)
+                    {
+                        foreach (var elem in doc.RootElement.EnumerateArray())
+                        {
+                            var ver = elem.TryGetProperty("version", out var vProp) ? vProp.GetString() ?? "" : "";
+                            int build = elem.TryGetProperty("build", out var bProp) && bProp.TryGetInt32(out int bVal) ? bVal : 0;
+                            long sizeBytes = elem.TryGetProperty("size", out var sProp) && sProp.TryGetInt64(out long sVal) ? sVal : 0;
+                            string tag = "tested";
+                            if (elem.TryGetProperty("tags", out var tProp) && tProp.ValueKind == JsonValueKind.Array)
+                            {
+                                var firstTag = tProp.EnumerateArray().FirstOrDefault();
+                                if (firstTag.ValueKind == JsonValueKind.String)
+                                {
+                                    tag = firstTag.GetString() ?? "tested";
+                                }
+                            }
+
+                            if (!string.IsNullOrEmpty(ver) && build > 0)
+                            {
+                                versions.Add(new CspVersionInfo
+                                {
+                                    Version = ver,
+                                    Build = build,
+                                    Tag = tag,
+                                    SizeMb = sizeBytes > 0 ? Math.Round(sizeBytes / (1024.0 * 1024.0), 1) : 95.0
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+            catch { }
+
+            // 2. Fallback / Supplement with official acstuff.club public releases
+            var builtInCatalog = new[]
+            {
+                new CspVersionInfo { Version = "0.2.11", Build = 3465, Tag = "recommended", SizeMb = 96.2 },
+                new CspVersionInfo { Version = "0.2.7",  Build = 3334, Tag = "tested",      SizeMb = 95.0 },
+                new CspVersionInfo { Version = "0.2.6",  Build = 3281, Tag = "tested",      SizeMb = 93.9 },
+                new CspVersionInfo { Version = "0.2.5",  Build = 3249, Tag = "tested",      SizeMb = 94.0 },
+                new CspVersionInfo { Version = "0.2.4",  Build = 3116, Tag = "tested",      SizeMb = 88.6 },
+                new CspVersionInfo { Version = "0.2.3",  Build = 3044, Tag = "tested",      SizeMb = 88.2 },
+                new CspVersionInfo { Version = "0.1.79", Build = 2144, Tag = "recommended", SizeMb = 65.4 }
+            };
+
+            foreach (var item in builtInCatalog)
+            {
+                if (!versions.Any(v => v.Version == item.Version))
+                {
+                    versions.Add(item);
+                }
+            }
+
+            return versions
+                .OrderByDescending(v => v.Build)
+                .Take(15)
+                .ToList();
+        }
+
         public async Task<CspSettings> LoadSettingsAsync(string acRoot)
         {
             return await Task.Run(() =>
             {
                 var settings = new CspSettings();
+                settings.AvailableVersions = LoadAvailableVersions();
+
+                var recommended = settings.AvailableVersions.FirstOrDefault(v => v.IsRecommended)
+                                  ?? settings.AvailableVersions.FirstOrDefault();
+                if (recommended != null)
+                {
+                    settings.LatestRecommendedVersion = recommended.Version;
+                    settings.LatestRecommendedBuild = recommended.Build;
+                }
+
                 var configDir = GetExtensionConfigDir();
 
                 // 1. Detect Installation & Master Switch in AC Root
@@ -319,7 +413,79 @@ namespace AcVelocity.Services
             });
         }
 
-        public async Task<(bool Success, string Message)> InstallCspZipAsync(string zipFilePath, string acRoot)
+        public async Task<(bool Success, string Message)> DownloadAndInstallCspAsync(
+            CspVersionInfo targetVersion,
+            string acRoot,
+            IProgress<(double Percent, string Status)>? progress = null)
+        {
+            if (targetVersion == null) return (false, "No CSP version selected.");
+            if (string.IsNullOrEmpty(acRoot) || !Directory.Exists(acRoot)) return (false, "Assetto Corsa root folder not found.");
+
+            var tempZipPath = Path.Combine(Path.GetTempPath(), $"lights-patch-v{targetVersion.Version}_{Guid.NewGuid():N}.zip");
+
+            try
+            {
+                progress?.Report((2, $"CONNECTING TO ACSTUFF CDN (CSP v{targetVersion.Version} // BUILD {targetVersion.Build})..."));
+
+                using (var response = await _http.GetAsync(targetVersion.DownloadUrl, HttpCompletionOption.ResponseHeadersRead))
+                {
+                    response.EnsureSuccessStatusCode();
+                    var totalBytes = response.Content.Headers.ContentLength ?? (long)(targetVersion.SizeMb * 1024 * 1024);
+
+                    await using var contentStream = await response.Content.ReadAsStreamAsync();
+                    await using var fileStream = new FileStream(tempZipPath, FileMode.Create, FileAccess.Write, FileShare.None, 81920, true);
+
+                    var buffer = new byte[81920];
+                    long totalRead = 0;
+                    int bytesRead;
+                    DateTime lastReport = DateTime.MinValue;
+
+                    while ((bytesRead = await contentStream.ReadAsync(buffer, 0, buffer.Length)) > 0)
+                    {
+                        await fileStream.WriteAsync(buffer, 0, bytesRead);
+                        totalRead += bytesRead;
+
+                        if ((DateTime.UtcNow - lastReport).TotalMilliseconds >= 100 || totalRead == totalBytes)
+                        {
+                            lastReport = DateTime.UtcNow;
+                            double pct = totalBytes > 0 ? Math.Min(90.0, (double)totalRead / totalBytes * 88.0 + 2.0) : 50.0;
+                            double readMb = totalRead / (1024.0 * 1024.0);
+                            double totalMb = totalBytes / (1024.0 * 1024.0);
+                            progress?.Report((pct, $"DOWNLOADING CSP v{targetVersion.Version}: {readMb:F1} / {totalMb:F1} MB ({pct:F0}%)"));
+                        }
+                    }
+                }
+
+                progress?.Report((92, $"EXTRACTING & DEPLOYING CSP v{targetVersion.Version} TO ASSETTO CORSA ROOT..."));
+
+                var installRes = await InstallCspZipAsync(tempZipPath, acRoot, targetVersion.Version, targetVersion.Build);
+                if (installRes.Success)
+                {
+                    progress?.Report((100, $"CSP v{targetVersion.Version} (BUILD {targetVersion.Build}) INSTALLED SUCCESSFULLY!"));
+                }
+                else
+                {
+                    progress?.Report((0, $"INSTALL ERROR: {installRes.Message}"));
+                }
+
+                return installRes;
+            }
+            catch (Exception ex)
+            {
+                progress?.Report((0, $"DOWNLOAD FAILED: {ex.Message}"));
+                return (false, $"Failed to download CSP v{targetVersion.Version}: {ex.Message}");
+            }
+            finally
+            {
+                try { if (File.Exists(tempZipPath)) File.Delete(tempZipPath); } catch { }
+            }
+        }
+
+        public async Task<(bool Success, string Message)> InstallCspZipAsync(
+            string zipFilePath,
+            string acRoot,
+            string? explicitVersion = null,
+            int explicitBuild = 0)
         {
             return await Task.Run(() =>
             {
@@ -351,6 +517,13 @@ namespace AcVelocity.Services
                         }
                     }
 
+                    // Remove disabled dwrite if present so new CSP is active
+                    var dwriteDisabledPath = Path.Combine(acRoot, "dwrite.dll.disabled");
+                    if (File.Exists(dwriteDisabledPath))
+                    {
+                        try { File.Delete(dwriteDisabledPath); } catch { }
+                    }
+
                     int extractedCount = 0;
                     foreach (var entry in archive.Entries)
                     {
@@ -377,6 +550,38 @@ namespace AcVelocity.Services
                     {
                         return (false, "No valid Custom Shaders Patch payload found inside archive.");
                     }
+
+                    // Write extension/installed.log if version/build metadata was provided or inferred from filename
+                    try
+                    {
+                        var extDir = Path.Combine(acRoot, "extension");
+                        Directory.CreateDirectory(extDir);
+                        var installedLogPath = Path.Combine(extDir, "installed.log");
+
+                        string ver = explicitVersion ?? "";
+                        int bld = explicitBuild;
+
+                        if (string.IsNullOrEmpty(ver))
+                        {
+                            // Try to infer from zip file name e.g. lights-patch-v0.2.11.zip
+                            var fn = Path.GetFileNameWithoutExtension(zipFilePath);
+                            var match = System.Text.RegularExpressions.Regex.Match(fn, @"(\d+\.\d+\.\d+)");
+                            if (match.Success)
+                            {
+                                ver = match.Groups[1].Value;
+                                var known = LoadAvailableVersions().FirstOrDefault(v => v.Version == ver);
+                                if (known != null) bld = known.Build;
+                            }
+                        }
+
+                        if (!string.IsNullOrEmpty(ver))
+                        {
+                            var logLines = new List<string> { $"version: {ver}" };
+                            if (bld > 0) logLines.Add($"build: {bld}");
+                            File.WriteAllLines(installedLogPath, logLines);
+                        }
+                    }
+                    catch { }
 
                     return (true, $"Custom Shaders Patch build successfully installed ({extractedCount} components updated).");
                 }

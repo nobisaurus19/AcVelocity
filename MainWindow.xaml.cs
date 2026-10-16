@@ -80,6 +80,17 @@ namespace AcVelocity
             }
         }
 
+        private async void BtnAutoInstallCsp_Click(object sender, RoutedEventArgs e)
+        {
+            await _vm.AutoInstallCspAsync();
+        }
+
+        private async void BtnOneClickUpdateCsp_Click(object sender, RoutedEventArgs e)
+        {
+            var rec = _vm.CspSettings.AvailableVersions.Find(v => v.IsRecommended);
+            await _vm.AutoInstallCspAsync(rec);
+        }
+
         private async void BtnRefreshContent_Click(object sender, RoutedEventArgs e)
         {
             await _vm.InitializeAsync();
@@ -141,6 +152,25 @@ namespace AcVelocity
             if (sender is FrameworkElement fe && fe.DataContext is ServerInfo s)
             {
                 await _vm.ConnectToServerAsync(s);
+            }
+        }
+
+        private async void BtnScanServerMods_Click(object sender, RoutedEventArgs e)
+        {
+            await _vm.ScanSelectedServerModsAsync();
+        }
+
+        private async void BtnDownloadMissingServerMods_Click(object sender, RoutedEventArgs e)
+        {
+            await _vm.DownloadMissingServerModsAsync();
+        }
+
+        private async void BtnAddCustomServer_Click(object sender, RoutedEventArgs e)
+        {
+            var addr = TxtCustomServerAddress?.Text;
+            if (!string.IsNullOrWhiteSpace(addr))
+            {
+                await _vm.AddCustomServerAsync(addr);
             }
         }
 

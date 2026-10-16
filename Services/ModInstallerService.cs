@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
@@ -16,11 +17,60 @@ namespace AcVelocity.Services
 
     public class ModInstallerService
     {
-        public async Task<ModInstallResult> InstallZipModAsync(string zipFilePath, string acRoot)
+        public string? FindSevenZipExecutable()
+        {
+            var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+            var cm7z = Path.Combine(localAppData, "AcTools Content Manager", "Plugins", "7Zip", "7z.exe");
+            if (File.Exists(cm7z)) return cm7z;
+
+            var pf7z = @"C:\Program Files\7-Zip\7z.exe";
+            if (File.Exists(pf7z)) return pf7z;
+
+            var pfx86 = @"C:\Program Files (x86)\7-Zip\7z.exe";
+            if (File.Exists(pfx86)) return pfx86;
+
+            return null;
+        }
+
+        private void ExtractArchiveToDirectory(string archiveFilePath, string destinationDir)
+        {
+            var ext = Path.GetExtension(archiveFilePath).ToLowerInvariant();
+            if (ext == ".zip")
+            {
+                ZipFile.ExtractToDirectory(archiveFilePath, destinationDir, overwriteFiles: true);
+                return;
+            }
+
+            var sevenZip = FindSevenZipExecutable();
+            if (sevenZip != null)
+            {
+                var psi = new ProcessStartInfo
+                {
+                    FileName = sevenZip,
+                    Arguments = $"x \"{archiveFilePath}\" -o\"{destinationDir}\" -y",
+                    CreateNoWindow = true,
+                    UseShellExecute = false,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true
+                };
+
+                using var proc = Process.Start(psi);
+                proc?.WaitForExit(180_000);
+                if (proc != null && proc.ExitCode == 0)
+                {
+                    return;
+                }
+            }
+
+            // Fallback: attempt ZipFile in case it's a zip with a different extension
+            ZipFile.ExtractToDirectory(archiveFilePath, destinationDir, overwriteFiles: true);
+        }
+
+        public async Task<ModInstallResult> InstallZipModAsync(string archiveFilePath, string acRoot, string? expectedCarId = null)
         {
             return await Task.Run(() =>
             {
-                if (!File.Exists(zipFilePath))
+                if (!File.Exists(archiveFilePath))
                 {
                     return new ModInstallResult { Success = false, Message = "File does not exist." };
                 }
@@ -30,13 +80,13 @@ namespace AcVelocity.Services
                     return new ModInstallResult { Success = false, Message = "Invalid Assetto Corsa root path." };
                 }
 
-                var fileName = Path.GetFileNameWithoutExtension(zipFilePath);
+                var fileName = Path.GetFileNameWithoutExtension(archiveFilePath);
                 var tempExtract = Path.Combine(Path.GetTempPath(), "AcMod_" + Guid.NewGuid().ToString("N"));
 
                 try
                 {
                     Directory.CreateDirectory(tempExtract);
-                    ZipFile.ExtractToDirectory(zipFilePath, tempExtract);
+                    ExtractArchiveToDirectory(archiveFilePath, tempExtract);
 
                     // Inspect structure
                     // Pattern 1: Contains 'content/cars' or 'content/tracks'
@@ -49,35 +99,50 @@ namespace AcVelocity.Services
                         { 
                             Success = true, 
                             ModType = "STANDARD CONTENT", 
-                            ModName = fileName,
-                            Message = $"Successfully integrated package '{fileName}' into game content depot." 
+                            ModName = expectedCarId ?? fileName,
+                            Message = $"Successfully integrated package '{expectedCarId ?? fileName}' into game content depot." 
                         };
                     }
 
-                    // Pattern 2: Directly a car folder (contains 'data' or 'ui' or 'skins' or 'body_shadow.ini')
+                    // Pattern 2: Directly a car folder (contains 'data' or 'ui' or 'skins' or 'data.acd' or '.kn5')
                     bool isCar = Directory.GetDirectories(tempExtract, "skins", SearchOption.AllDirectories).Any() ||
-                                 Directory.GetDirectories(tempExtract, "ui", SearchOption.AllDirectories).Any() ||
-                                 Directory.GetFiles(tempExtract, "data.acd", SearchOption.AllDirectories).Any();
+                                 Directory.GetDirectories(tempExtract, "sfx", SearchOption.AllDirectories).Any() ||
+                                 Directory.GetFiles(tempExtract, "data.acd", SearchOption.AllDirectories).Any() ||
+                                 !string.IsNullOrEmpty(expectedCarId);
 
                     if (isCar)
                     {
                         var targetCars = Path.Combine(acRoot, "content", "cars");
-                        // Find the folder that contains skins/ui
-                        var carSubDir = Directory.GetDirectories(tempExtract, "skins", SearchOption.AllDirectories).FirstOrDefault();
-                        var carRoot = carSubDir != null ? Directory.GetParent(carSubDir)?.FullName : tempExtract;
-                        var destDir = Path.Combine(targetCars, Path.GetFileName(carRoot ?? fileName));
+                        var carSubDir = Directory.GetDirectories(tempExtract, "skins", SearchOption.AllDirectories).FirstOrDefault()
+                                     ?? Directory.GetDirectories(tempExtract, "sfx", SearchOption.AllDirectories).FirstOrDefault();
 
-                        if (carRoot != null)
+                        string? carRoot = null;
+                        if (carSubDir != null)
                         {
-                            CopyDirectory(carRoot, destDir);
-                            return new ModInstallResult 
-                            { 
-                                Success = true, 
-                                ModType = "VEHICLE", 
-                                ModName = Path.GetFileName(destDir),
-                                Message = $"Vehicle '{Path.GetFileName(destDir)}' installed into hangar." 
-                            };
+                            carRoot = Directory.GetParent(carSubDir)?.FullName;
                         }
+                        else
+                        {
+                            var acdFile = Directory.GetFiles(tempExtract, "data.acd", SearchOption.AllDirectories).FirstOrDefault();
+                            if (acdFile != null) carRoot = Path.GetDirectoryName(acdFile);
+                        }
+
+                        carRoot ??= tempExtract;
+
+                        string carFolderName = !string.IsNullOrEmpty(expectedCarId)
+                            ? expectedCarId
+                            : (carRoot == tempExtract ? fileName : Path.GetFileName(carRoot));
+
+                        var destDir = Path.Combine(targetCars, carFolderName);
+                        CopyDirectory(carRoot, destDir);
+
+                        return new ModInstallResult 
+                        { 
+                            Success = true, 
+                            ModType = "VEHICLE", 
+                            ModName = carFolderName,
+                            Message = $"Vehicle '{carFolderName}' installed into hangar." 
+                        };
                     }
 
                     // Pattern 3: Directly a track folder (contains 'models.ini' or 'surfaces.ini')
@@ -89,7 +154,8 @@ namespace AcVelocity.Services
                         var targetTracks = Path.Combine(acRoot, "content", "tracks");
                         var modelsFile = Directory.GetFiles(tempExtract, "models*.ini", SearchOption.AllDirectories).FirstOrDefault();
                         var trackRoot = modelsFile != null ? Directory.GetParent(modelsFile)?.FullName : tempExtract;
-                        var destDir = Path.Combine(targetTracks, Path.GetFileName(trackRoot ?? fileName));
+                        string trackFolderName = trackRoot == tempExtract || trackRoot == null ? fileName : Path.GetFileName(trackRoot);
+                        var destDir = Path.Combine(targetTracks, trackFolderName);
 
                         if (trackRoot != null)
                         {
@@ -98,8 +164,8 @@ namespace AcVelocity.Services
                             { 
                                 Success = true, 
                                 ModType = "CIRCUIT", 
-                                ModName = Path.GetFileName(destDir),
-                                Message = $"Circuit '{Path.GetFileName(destDir)}' installed into track matrix." 
+                                ModName = trackFolderName,
+                                Message = $"Circuit '{trackFolderName}' installed into track matrix." 
                             };
                         }
                     }

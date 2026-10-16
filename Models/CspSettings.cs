@@ -3,6 +3,20 @@ using System.Collections.Generic;
 
 namespace AcVelocity.Models
 {
+    public class CspVersionInfo
+    {
+        public string Version { get; set; } = "0.2.11";
+        public int Build { get; set; } = 3465;
+        public string Tag { get; set; } = "recommended";
+        public double SizeMb { get; set; } = 96.2;
+        public string ChangelogSummary { get; set; } = string.Empty;
+
+        public string DownloadUrl => $"https://acstuff.club/patch/?get={Version}";
+        public bool IsRecommended => string.Equals(Tag, "recommended", StringComparison.OrdinalIgnoreCase);
+        public string DisplayTitle => $"v{Version} (Build {Build})  •  [{Tag.ToUpperInvariant()}]  •  {SizeMb:F1} MB";
+        public string ShortBadge => IsRecommended ? "★ RECOMMENDED" : Tag.ToUpperInvariant();
+    }
+
     public class CspSettings
     {
         public bool IsCspInstalled { get; set; } = false;
@@ -10,6 +24,18 @@ namespace AcVelocity.Models
         public int CspBuild { get; set; } = 0;
         public double DwriteSizeMb { get; set; } = 0.0;
         public bool MasterEnabled { get; set; } = true;
+
+        // Auto-Updater & Version Catalog Metadata
+        public string LatestRecommendedVersion { get; set; } = "0.2.11";
+        public int LatestRecommendedBuild { get; set; } = 3465;
+        public List<CspVersionInfo> AvailableVersions { get; set; } = new();
+
+        public bool IsUpdateAvailable => !IsCspInstalled || (CspBuild > 0 && CspBuild < LatestRecommendedBuild);
+        public string UpdateStatusDisplay => !IsCspInstalled
+            ? "CSP NOT INSTALLED // READY FOR 1-CLICK DEPLOY"
+            : (IsUpdateAvailable
+                ? $"UPDATE AVAILABLE: v{LatestRecommendedVersion} (BUILD {LatestRecommendedBuild})"
+                : $"UP TO DATE // v{CspVersion} (BUILD {CspBuild})");
 
         // Dynamic Options
         public List<string> AvailableWeatherImplementations { get; set; } = new();

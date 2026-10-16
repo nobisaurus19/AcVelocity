@@ -129,7 +129,42 @@ namespace AcVelocity.ViewModels
         public CspSettings CspSettings
         {
             get => _cspSettings;
-            set { SetField(ref _cspSettings, value); }
+            set
+            {
+                if (SetField(ref _cspSettings, value))
+                {
+                    SelectedCspVersion = value?.AvailableVersions?.FirstOrDefault(v => v.IsRecommended)
+                                         ?? value?.AvailableVersions?.FirstOrDefault();
+                }
+            }
+        }
+
+        private CspVersionInfo? _selectedCspVersion;
+        public CspVersionInfo? SelectedCspVersion
+        {
+            get => _selectedCspVersion;
+            set => SetField(ref _selectedCspVersion, value);
+        }
+
+        private bool _isCspDownloading;
+        public bool IsCspDownloading
+        {
+            get => _isCspDownloading;
+            set => SetField(ref _isCspDownloading, value);
+        }
+
+        private double _cspDownloadProgress;
+        public double CspDownloadProgress
+        {
+            get => _cspDownloadProgress;
+            set => SetField(ref _cspDownloadProgress, value);
+        }
+
+        private string _cspDownloadStatusText = "READY // SELECT OFFICIAL CSP VERSION OR CLICK 1-CLICK RECOMMENDED UPDATE";
+        public string CspDownloadStatusText
+        {
+            get => _cspDownloadStatusText;
+            set => SetField(ref _cspDownloadStatusText, value);
         }
 
         public string AcRootPath
@@ -469,17 +504,77 @@ namespace AcVelocity.ViewModels
 
         // Online Props & Server Directory
         public ObservableCollection<ServerInfo> OnlineServers { get; } = new();
+        public RangeObservableCollection<ServerInfo> FilteredOnlineServers { get; } = new();
+
+        private string _onlineServerSearchQuery = string.Empty;
+        public string OnlineServerSearchQuery
+        {
+            get => _onlineServerSearchQuery;
+            set
+            {
+                if (SetField(ref _onlineServerSearchQuery, value))
+                {
+                    ApplyOnlineServerFilter();
+                }
+            }
+        }
+
+        private bool _onlyShowReadyServers;
+        public bool OnlyShowReadyServers
+        {
+            get => _onlyShowReadyServers;
+            set
+            {
+                if (SetField(ref _onlyShowReadyServers, value))
+                {
+                    ApplyOnlineServerFilter();
+                }
+            }
+        }
+
         private ServerInfo? _selectedOnlineServer;
         public ServerInfo? SelectedOnlineServer
         {
             get => _selectedOnlineServer;
             set
             {
-                if (SetField(ref _selectedOnlineServer, value) && value != null)
+                if (SetField(ref _selectedOnlineServer, value))
                 {
-                    OnlineServerIp = value.Ip;
-                    OnlineServerPort = value.Port;
-                    Log($"Targeted Remote Server: {value.Name} ({value.Ip}:{value.Port})");
+                    OnPropertyChanged(nameof(HasSelectedOnlineServer));
+                    if (value != null)
+                    {
+                        OnlineServerIp = value.Ip;
+                        OnlineServerPort = value.Port;
+                        OnlineServerHttpPort = value.HttpPort;
+                        _serverService.VerifyServerContent(value, AllCars, AllTracks, CspSettings, AcRootPath);
+
+                        SelectedServerCarSlot = value.CarSlots.FirstOrDefault(s => s.IsInstalled && s.FreeSlots > 0 && !s.IsTrafficCar)
+                                             ?? value.CarSlots.FirstOrDefault(s => s.IsInstalled && !s.IsTrafficCar)
+                                             ?? value.CarSlots.FirstOrDefault(s => !s.IsTrafficCar)
+                                             ?? value.CarSlots.FirstOrDefault();
+
+                        Log($"Targeted Remote Server: {value.Name} ({value.Ip}:{value.HttpPort}) — {value.ReadinessBadge}");
+                    }
+                }
+            }
+        }
+
+        public bool HasSelectedOnlineServer => SelectedOnlineServer != null;
+
+        private ServerCarSlotInfo? _selectedServerCarSlot;
+        public ServerCarSlotInfo? SelectedServerCarSlot
+        {
+            get => _selectedServerCarSlot;
+            set
+            {
+                if (SetField(ref _selectedServerCarSlot, value) && value != null)
+                {
+                    var matchedCar = AllCars.FirstOrDefault(c => string.Equals(c.Id, value.CarId, StringComparison.OrdinalIgnoreCase));
+                    if (matchedCar != null)
+                    {
+                        SelectedCar = matchedCar;
+                    }
+                    Log($"Selected Server Entry Slot: {value.DisplayName} [{value.SlotBadge}]");
                 }
             }
         }
@@ -489,6 +584,34 @@ namespace AcVelocity.ViewModels
         {
             get => _isRefreshingServers;
             set { SetField(ref _isRefreshingServers, value); }
+        }
+
+        private bool _isDownloadingServerMods;
+        public bool IsDownloadingServerMods
+        {
+            get => _isDownloadingServerMods;
+            set => SetField(ref _isDownloadingServerMods, value);
+        }
+
+        private double _serverModDownloadProgress;
+        public double ServerModDownloadProgress
+        {
+            get => _serverModDownloadProgress;
+            set => SetField(ref _serverModDownloadProgress, value);
+        }
+
+        private string _serverModDownloadStatus = "PRE-JOIN MOD VERIFIER // READY";
+        public string ServerModDownloadStatus
+        {
+            get => _serverModDownloadStatus;
+            set => SetField(ref _serverModDownloadStatus, value);
+        }
+
+        private int _onlineServerHttpPort = 8081;
+        public int OnlineServerHttpPort
+        {
+            get => _onlineServerHttpPort;
+            set => SetField(ref _onlineServerHttpPort, value);
         }
 
         public string OnlineServerIp
@@ -765,11 +888,70 @@ namespace AcVelocity.ViewModels
                 Log($"CSP Success: {res.Message}");
                 StatusMessage = "CSP BUILD DEPLOYED";
                 CspSettings = await _cspService.LoadSettingsAsync(AcRootPath);
+                foreach (var s in OnlineServers)
+                {
+                    _serverService.VerifyServerContent(s, AllCars, AllTracks, CspSettings, AcRootPath);
+                }
             }
             else
             {
                 Log($"CSP install failed: {res.Message}");
                 StatusMessage = "CSP INSTALLATION FAILED";
+            }
+        }
+
+        public async Task AutoInstallCspAsync(CspVersionInfo? versionOverride = null)
+        {
+            if (IsCspDownloading) return;
+
+            var target = versionOverride
+                         ?? SelectedCspVersion
+                         ?? CspSettings.AvailableVersions.FirstOrDefault(v => v.IsRecommended)
+                         ?? new CspVersionInfo { Version = "0.2.11", Build = 3465, Tag = "recommended", SizeMb = 96.2 };
+
+            IsCspDownloading = true;
+            CspDownloadProgress = 2;
+            CspDownloadStatusText = $"INITIALIZING AUTO-INSTALLER FOR CSP v{target.Version} (BUILD {target.Build})...";
+            StatusMessage = $"DOWNLOADING CSP v{target.Version}...";
+            Log($"Initiating automated CSP deployment: v{target.Version} (Build {target.Build}) from {target.DownloadUrl}");
+
+            try
+            {
+                var progress = new Progress<(double Percent, string Status)>(p =>
+                {
+                    CspDownloadProgress = p.Percent;
+                    CspDownloadStatusText = p.Status;
+                    StatusMessage = p.Status;
+                });
+
+                var res = await _cspService.DownloadAndInstallCspAsync(target, AcRootPath, progress);
+                if (res.Success)
+                {
+                    Log($"✅ Auto-Installer Completed: {res.Message}");
+                    CspSettings = await _cspService.LoadSettingsAsync(AcRootPath);
+                    CspDownloadStatusText = $"✅ CSP v{CspSettings.CspVersion} (BUILD {CspSettings.CspBuild}) DEPLOYED & ACTIVE";
+                    StatusMessage = $"CSP v{CspSettings.CspVersion} ONLINE";
+
+                    foreach (var s in OnlineServers)
+                    {
+                        _serverService.VerifyServerContent(s, AllCars, AllTracks, CspSettings, AcRootPath);
+                    }
+                }
+                else
+                {
+                    Log($"❌ CSP Auto-Install Error: {res.Message}");
+                    CspDownloadStatusText = $"❌ ERROR: {res.Message}";
+                    StatusMessage = "CSP AUTO-INSTALL FAILED";
+                }
+            }
+            catch (Exception ex)
+            {
+                Log($"CSP Auto-Install Exception: {ex.Message}");
+                CspDownloadStatusText = $"❌ EXCEPTION: {ex.Message}";
+            }
+            finally
+            {
+                IsCspDownloading = false;
             }
         }
 
@@ -831,7 +1013,7 @@ namespace AcVelocity.ViewModels
 
         public async Task LaunchOnlineAsync()
         {
-            if (SelectedCar == null)
+            if (SelectedCar == null && SelectedServerCarSlot == null)
             {
                 Log("Error: Please select a vehicle for online dispatch.");
                 return;
@@ -843,7 +1025,38 @@ namespace AcVelocity.ViewModels
                 return;
             }
 
-            Log($"Establishing remote neural connection to {OnlineServerIp}:{OnlineServerPort}...");
+            // Pre-Join Missing Mod Check
+            if (SelectedOnlineServer != null)
+            {
+                _serverService.VerifyServerContent(SelectedOnlineServer, AllCars, AllTracks, CspSettings, AcRootPath);
+
+                if (!SelectedOnlineServer.IsCspRequirementMet)
+                {
+                    Log($"⚠️ PRE-JOIN ALERT: Server requires CSP Build {SelectedOnlineServer.RequiredCspBuild}+ (Installed: {CspSettings.CspBuild}). Please update CSP in the CSP Matrix tab.");
+                    StatusMessage = $"CSP BUILD {SelectedOnlineServer.RequiredCspBuild}+ REQUIRED";
+                }
+
+                if (!SelectedOnlineServer.IsTrackInstalled)
+                {
+                    Log($"⚠️ PRE-JOIN ALERT: Missing required track '{SelectedOnlineServer.CleanTrackId}' [{SelectedOnlineServer.TrackLayoutId}].");
+                    StatusMessage = $"MISSING TRACK: {SelectedOnlineServer.CleanTrackId}";
+                }
+
+                if (SelectedOnlineServer.MissingCarCount > 0)
+                {
+                    Log($"⚠️ PRE-JOIN ALERT: Missing {SelectedOnlineServer.MissingCarCount} server vehicle(s): {string.Join(", ", SelectedOnlineServer.MissingCarIds.Take(5))}{(SelectedOnlineServer.MissingCarCount > 5 ? "..." : "")}");
+                    if (SelectedOnlineServer.CanAutoDownloadMissing)
+                    {
+                        Log("💡 Tip: Click 'AUTO-DOWNLOAD MISSING MODS' in the Online panel to install them automatically.");
+                    }
+                }
+            }
+
+            string? slotCarId = SelectedServerCarSlot?.CarId;
+            string? slotSkin = SelectedServerCarSlot?.Skin;
+            var fallbackCar = SelectedCar ?? AllCars.FirstOrDefault() ?? new CarInfo { Id = slotCarId ?? "abarth500", SelectedSkin = slotSkin ?? "" };
+
+            Log($"Establishing remote neural connection to {OnlineServerIp}:{OnlineServerPort} (HTTP: {OnlineServerHttpPort}) with [{slotCarId ?? fallbackCar.Id}]...");
             StatusMessage = "CONNECTING TO REMOTE SERVER...";
 
             try
@@ -852,8 +1065,12 @@ namespace AcVelocity.ViewModels
                     OnlineServerIp,
                     OnlineServerPort,
                     OnlinePassword,
-                    SelectedCar,
-                    OnlinePilotName
+                    fallbackCar,
+                    OnlinePilotName,
+                    OnlineServerHttpPort,
+                    SelectedOnlineServer?.Name ?? "Remote AC Server",
+                    slotCarId,
+                    slotSkin
                 );
 
                 Log($"Generated online profile in {iniPath}");
@@ -1055,24 +1272,57 @@ namespace AcVelocity.ViewModels
             StatusMessage = $"PRESET SAVED: {presetName}";
         }
 
+        public void ApplyOnlineServerFilter()
+        {
+            var q = (OnlineServerSearchQuery ?? string.Empty).Trim().ToLowerInvariant();
+            var query = OnlineServers.AsEnumerable();
+
+            if (OnlyShowReadyServers)
+            {
+                query = query.Where(s => s.IsReadyToJoin);
+            }
+
+            if (!string.IsNullOrEmpty(q))
+            {
+                query = query.Where(s =>
+                    (s.Name?.ToLowerInvariant().Contains(q) ?? false) ||
+                    (s.Track?.ToLowerInvariant().Contains(q) ?? false) ||
+                    (s.CleanTrackId?.ToLowerInvariant().Contains(q) ?? false) ||
+                    (s.Ip?.ToLowerInvariant().Contains(q) ?? false));
+            }
+
+            FilteredOnlineServers.ReplaceRange(query);
+        }
+
         public async Task RefreshOnlineServersAsync()
         {
             IsRefreshingServers = true;
-            StatusMessage = "PROBING ONLINE AC SERVERS...";
+            StatusMessage = "PROBING ONLINE AC SERVERS & CHECKING MODS...";
             try
             {
                 var servers = await _serverService.LoadServersAsync();
                 OnlineServers.Clear();
                 foreach (var s in servers) OnlineServers.Add(s);
+                ApplyOnlineServerFilter();
 
                 Log($"Parsed {OnlineServers.Count} server bookmarks from Content Manager registry.");
 
                 _ = Task.Run(async () =>
                 {
-                    foreach (var s in OnlineServers)
+                    foreach (var s in OnlineServers.ToList())
                     {
                         await _serverService.QueryServerStatsAsync(s);
+                        _serverService.VerifyServerContent(s, AllCars, AllTracks, CspSettings, AcRootPath);
                     }
+
+                    System.Windows.Application.Current?.Dispatcher.Invoke(() =>
+                    {
+                        ApplyOnlineServerFilter();
+                        if (SelectedOnlineServer == null && FilteredOnlineServers.Count > 0)
+                        {
+                            SelectedOnlineServer = FilteredOnlineServers[0];
+                        }
+                    });
                 });
             }
             catch (Exception ex)
@@ -1083,6 +1333,124 @@ namespace AcVelocity.ViewModels
             {
                 IsRefreshingServers = false;
                 StatusMessage = "ONLINE SERVER DIRECTORY READY";
+            }
+        }
+
+        public async Task ScanSelectedServerModsAsync()
+        {
+            if (SelectedOnlineServer == null)
+            {
+                if (!string.IsNullOrWhiteSpace(OnlineServerIp))
+                {
+                    await AddCustomServerAsync($"{OnlineServerIp}:{OnlineServerHttpPort}");
+                }
+                return;
+            }
+
+            StatusMessage = $"PROBING {SelectedOnlineServer.Name}...";
+            ServerModDownloadStatus = $"SCANNING ENTRY LIST & MOD MANIFEST ON {SelectedOnlineServer.Ip}:{SelectedOnlineServer.HttpPort}...";
+            await _serverService.QueryServerStatsAsync(SelectedOnlineServer);
+            _serverService.VerifyServerContent(SelectedOnlineServer, AllCars, AllTracks, CspSettings, AcRootPath);
+
+            SelectedServerCarSlot = SelectedOnlineServer.CarSlots.FirstOrDefault(s => s.IsInstalled && s.FreeSlots > 0 && !s.IsTrafficCar)
+                                 ?? SelectedOnlineServer.CarSlots.FirstOrDefault(s => s.IsInstalled && !s.IsTrafficCar)
+                                 ?? SelectedOnlineServer.CarSlots.FirstOrDefault(s => !s.IsTrafficCar)
+                                 ?? SelectedOnlineServer.CarSlots.FirstOrDefault();
+
+            OnlineServerPort = SelectedOnlineServer.Port;
+            OnlineServerHttpPort = SelectedOnlineServer.HttpPort;
+            ServerModDownloadStatus = SelectedOnlineServer.IsReadyToJoin
+                ? "✅ ALL REQUIRED TRACK & VEHICLE MODS VERIFIED"
+                : $"⚠️ MISSING: {(SelectedOnlineServer.IsTrackInstalled ? "" : "1 TRACK, ")}{SelectedOnlineServer.MissingCarCount} CARS";
+            StatusMessage = SelectedOnlineServer.ReadinessBadge;
+            Log($"Verified server [{SelectedOnlineServer.Name}]: {SelectedOnlineServer.TrackStatusDisplay} | {SelectedOnlineServer.CarsStatusDisplay}");
+        }
+
+        public async Task AddCustomServerAsync(string rawInput)
+        {
+            if (string.IsNullOrWhiteSpace(rawInput)) return;
+
+            var cleaned = rawInput.Trim()
+                .Replace("http://", "", StringComparison.OrdinalIgnoreCase)
+                .Replace("https://", "", StringComparison.OrdinalIgnoreCase)
+                .Split('/')[0];
+
+            var parts = cleaned.Split(':');
+            string ip = parts[0].Trim();
+            int httpPort = parts.Length > 1 && int.TryParse(parts[1], out int p) ? p : OnlineServerHttpPort;
+
+            var existing = OnlineServers.FirstOrDefault(s => string.Equals(s.Ip, ip, StringComparison.OrdinalIgnoreCase) && s.HttpPort == httpPort);
+            if (existing == null)
+            {
+                existing = new ServerInfo
+                {
+                    Name = $"Server {ip}:{httpPort}",
+                    Ip = ip,
+                    Port = httpPort,
+                    HttpPort = httpPort
+                };
+                OnlineServers.Insert(0, existing);
+                ApplyOnlineServerFilter();
+            }
+
+            await _serverService.QueryServerStatsAsync(existing);
+            _serverService.VerifyServerContent(existing, AllCars, AllTracks, CspSettings, AcRootPath);
+            SelectedOnlineServer = existing;
+            ApplyOnlineServerFilter();
+        }
+
+        public async Task DownloadMissingServerModsAsync()
+        {
+            if (SelectedOnlineServer == null || IsDownloadingServerMods) return;
+
+            IsDownloadingServerMods = true;
+            ServerModDownloadProgress = 2;
+            ServerModDownloadStatus = "PREPARING MISSING MOD DOWNLOAD QUEUE...";
+            StatusMessage = "DOWNLOADING MISSING SERVER MODS...";
+            Log($"Starting automated download of {SelectedOnlineServer.DownloadableMissingCount} missing mod(s) for [{SelectedOnlineServer.Name}]...");
+
+            try
+            {
+                var progress = new Progress<(double Percent, string Status)>(p =>
+                {
+                    ServerModDownloadProgress = p.Percent;
+                    ServerModDownloadStatus = p.Status;
+                    StatusMessage = p.Status;
+                });
+
+                var (installed, failed, summary) = await _serverService.DownloadMissingServerModsAsync(
+                    SelectedOnlineServer,
+                    AcRootPath,
+                    _modService,
+                    progress);
+
+                Log($"Mod Auto-Download finished: {summary}");
+
+                if (installed > 0)
+                {
+                    var cars = await _scanner.ScanCarsAsync(AcRootPath);
+                    AllCars.Clear();
+                    foreach (var c in cars) AllCars.Add(c);
+                    ApplyCarFilter();
+
+                    var tracks = await _scanner.ScanTracksAsync(AcRootPath);
+                    AllTracks.Clear();
+                    foreach (var t in tracks) AllTracks.Add(t);
+                    ApplyTrackFilter();
+                }
+
+                _serverService.VerifyServerContent(SelectedOnlineServer, AllCars, AllTracks, CspSettings, AcRootPath);
+                SelectedServerCarSlot = SelectedOnlineServer.CarSlots.FirstOrDefault(s => s.IsInstalled && s.FreeSlots > 0 && !s.IsTrafficCar)
+                                     ?? SelectedOnlineServer.CarSlots.FirstOrDefault();
+            }
+            catch (Exception ex)
+            {
+                Log($"Error downloading server mods: {ex.Message}");
+                ServerModDownloadStatus = $"❌ ERROR: {ex.Message}";
+            }
+            finally
+            {
+                IsDownloadingServerMods = false;
             }
         }
 
