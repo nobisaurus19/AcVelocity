@@ -16,7 +16,14 @@
         AllowDrop="True"
         Drop="Window_Drop"
         DragOver="Window_DragOver"
-        KeyDown="Window_KeyDown">
+        KeyDown="Window_KeyDown"
+        UseLayoutRounding="True"
+        SnapsToDevicePixels="True"
+        TextOptions.TextFormattingMode="Display"
+        TextOptions.TextRenderingMode="ClearType"
+        TextOptions.TextHintingMode="Fixed"
+        RenderOptions.ClearTypeHint="Enabled"
+        RenderOptions.BitmapScalingMode="HighQuality">
 
     <Window.Resources>
         <conv:StringToImageSourceConverter x:Key="ImgConverter"/>
@@ -29,19 +36,16 @@
             <Setter Property="Background">
                 <Setter.Value>
                     <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                        <GradientStop Color="#E0111522" Offset="0"/>
-                        <GradientStop Color="#C00D1018" Offset="1"/>
+                        <GradientStop Color="#EC111522" Offset="0"/>
+                        <GradientStop Color="#D80D1018" Offset="1"/>
                     </LinearGradientBrush>
                 </Setter.Value>
             </Setter>
             <Setter Property="BorderBrush" Value="{StaticResource GlassBorderGradient}"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="CornerRadius" Value="14"/>
-            <Setter Property="Effect">
-                <Setter.Value>
-                    <DropShadowEffect BlurRadius="25" ShadowDepth="4" Color="#000000" Opacity="0.6"/>
-                </Setter.Value>
-            </Setter>
+            <Setter Property="SnapsToDevicePixels" Value="True"/>
+            <Setter Property="UseLayoutRounding" Value="True"/>
         </Style>
 
         <!-- Red Accent Tag Style -->
@@ -51,6 +55,8 @@
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="CornerRadius" Value="4"/>
             <Setter Property="Padding" Value="8,3"/>
+            <Setter Property="SnapsToDevicePixels" Value="True"/>
+            <Setter Property="UseLayoutRounding" Value="True"/>
         </Style>
 
         <!-- Navigation Tab Button Style -->
@@ -60,10 +66,12 @@
             <Setter Property="FontWeight" Value="Bold"/>
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="Margin" Value="0,0,8,0"/>
+            <Setter Property="SnapsToDevicePixels" Value="True"/>
+            <Setter Property="UseLayoutRounding" Value="True"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="{x:Type RadioButton}">
-                        <Border x:Name="tabBorder" Background="Transparent" CornerRadius="6" Padding="14,8" BorderThickness="1" BorderBrush="Transparent">
+                        <Border x:Name="tabBorder" Background="Transparent" CornerRadius="6" Padding="14,8" BorderThickness="1" BorderBrush="Transparent" SnapsToDevicePixels="True" UseLayoutRounding="True">
                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
                         <ControlTemplate.Triggers>
@@ -90,16 +98,18 @@
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="HorizontalAlignment" Value="Stretch"/>
             <Setter Property="Margin" Value="0,0,0,4"/>
+            <Setter Property="SnapsToDevicePixels" Value="True"/>
+            <Setter Property="UseLayoutRounding" Value="True"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="{x:Type RadioButton}">
-                        <Border x:Name="tabBorder" Background="Transparent" CornerRadius="8" Padding="12,10" BorderThickness="1" BorderBrush="Transparent">
+                        <Border x:Name="tabBorder" Background="Transparent" CornerRadius="8" Padding="12,10" BorderThickness="1" BorderBrush="Transparent" SnapsToDevicePixels="True" UseLayoutRounding="True">
                             <Grid>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="Auto"/>
                                     <ColumnDefinition Width="*"/>
                                 </Grid.ColumnDefinitions>
-                                <Rectangle x:Name="activeIndicator" Width="3" Height="14" RadiusX="1.5" RadiusY="1.5" Fill="{StaticResource NeonRedBrightBrush}" Margin="0,0,10,0" Visibility="Collapsed"/>
+                                <Rectangle x:Name="activeIndicator" Width="4" Height="14" RadiusX="2" RadiusY="2" Fill="{StaticResource NeonRedBrightBrush}" Margin="0,0,10,0" Visibility="Collapsed" SnapsToDevicePixels="True"/>
                                 <ContentPresenter Grid.Column="1" HorizontalAlignment="Left" VerticalAlignment="Center"/>
                             </Grid>
                         </Border>
@@ -128,10 +138,12 @@
             <Setter Property="FontWeight" Value="Bold"/>
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="Margin" Value="0,0,6,0"/>
+            <Setter Property="SnapsToDevicePixels" Value="True"/>
+            <Setter Property="UseLayoutRounding" Value="True"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="{x:Type RadioButton}">
-                        <Border x:Name="pillBorder" Background="#14FFFFFF" CornerRadius="6" Padding="10,5" BorderThickness="1" BorderBrush="#22FFFFFF">
+                        <Border x:Name="pillBorder" Background="#14FFFFFF" CornerRadius="6" Padding="10,5" BorderThickness="1" BorderBrush="#22FFFFFF" SnapsToDevicePixels="True" UseLayoutRounding="True">
                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
                         <ControlTemplate.Triggers>
@@ -155,10 +167,9 @@
     <Border Background="#090B0F" 
             CornerRadius="16" 
             BorderBrush="#33FF1E40" 
-            BorderThickness="1.5">
-        <Border.Effect>
-            <DropShadowEffect BlurRadius="40" ShadowDepth="0" Color="#FF1E40" Opacity="0.25"/>
-        </Border.Effect>
+            BorderThickness="1"
+            SnapsToDevicePixels="True"
+            UseLayoutRounding="True">
 
         <Grid>
             <Grid.RowDefinitions>
@@ -2630,14 +2641,13 @@
                 <Border Width="1180" Height="780" 
                         Background="#F00D1018" 
                         BorderBrush="{StaticResource RedNeonGradient}" 
-                        BorderThickness="1.5" 
+                        BorderThickness="1" 
                         CornerRadius="16" 
                         Padding="28" 
                         HorizontalAlignment="Center" 
-                        VerticalAlignment="Center">
-                    <Border.Effect>
-                        <DropShadowEffect BlurRadius="50" ShadowDepth="0" Color="#FF1E40" Opacity="0.45"/>
-                    </Border.Effect>
+                        VerticalAlignment="Center"
+                        SnapsToDevicePixels="True"
+                        UseLayoutRounding="True">
 
                     <Grid>
                         <Grid.RowDefinitions>
@@ -2738,6 +2748,8 @@
                                     <Setter Property="Background" Value="Transparent"/>
                                     <Setter Property="Padding" Value="6"/>
                                     <Setter Property="Margin" Value="0,0,10,12"/>
+                                    <Setter Property="SnapsToDevicePixels" Value="True"/>
+                                    <Setter Property="UseLayoutRounding" Value="True"/>
                                     <Setter Property="Template">
                                         <Setter.Value>
                                             <ControlTemplate TargetType="{x:Type ListBoxItem}">
@@ -2751,11 +2763,6 @@
                                                     <Trigger Property="IsSelected" Value="True">
                                                         <Setter TargetName="modalCardBorder" Property="BorderBrush" Value="{StaticResource NeonRedBrush}"/>
                                                         <Setter TargetName="modalCardBorder" Property="BorderThickness" Value="2"/>
-                                                        <Setter TargetName="modalCardBorder" Property="Effect">
-                                                            <Setter.Value>
-                                                                <DropShadowEffect BlurRadius="25" ShadowDepth="0" Color="#FF1E40" Opacity="0.75"/>
-                                                            </Setter.Value>
-                                                        </Setter>
                                                     </Trigger>
                                                 </ControlTemplate.Triggers>
                                             </ControlTemplate>
@@ -2828,14 +2835,13 @@
                 <Border Width="1180" Height="780" 
                         Background="#F00D1018" 
                         BorderBrush="{StaticResource RedNeonGradient}" 
-                        BorderThickness="1.5" 
+                        BorderThickness="1" 
                         CornerRadius="16" 
                         Padding="28" 
                         HorizontalAlignment="Center" 
-                        VerticalAlignment="Center">
-                    <Border.Effect>
-                        <DropShadowEffect BlurRadius="50" ShadowDepth="0" Color="#00E5FF" Opacity="0.45"/>
-                    </Border.Effect>
+                        VerticalAlignment="Center"
+                        SnapsToDevicePixels="True"
+                        UseLayoutRounding="True">
 
                     <Grid>
                         <Grid.RowDefinitions>
@@ -2917,6 +2923,8 @@
                                     <Setter Property="Background" Value="Transparent"/>
                                     <Setter Property="Padding" Value="6"/>
                                     <Setter Property="Margin" Value="0,0,10,12"/>
+                                    <Setter Property="SnapsToDevicePixels" Value="True"/>
+                                    <Setter Property="UseLayoutRounding" Value="True"/>
                                     <Setter Property="Template">
                                         <Setter.Value>
                                             <ControlTemplate TargetType="{x:Type ListBoxItem}">
@@ -2930,11 +2938,6 @@
                                                     <Trigger Property="IsSelected" Value="True">
                                                         <Setter TargetName="modalTrackCardBorder" Property="BorderBrush" Value="{StaticResource CyberCyanBrush}"/>
                                                         <Setter TargetName="modalTrackCardBorder" Property="BorderThickness" Value="2"/>
-                                                        <Setter TargetName="modalTrackCardBorder" Property="Effect">
-                                                            <Setter.Value>
-                                                                <DropShadowEffect BlurRadius="25" ShadowDepth="0" Color="#00E5FF" Opacity="0.75"/>
-                                                            </Setter.Value>
-                                                        </Setter>
                                                     </Trigger>
                                                 </ControlTemplate.Triggers>
                                             </ControlTemplate>

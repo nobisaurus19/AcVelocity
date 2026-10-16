@@ -86,27 +86,27 @@
             <Setter Property="FontSize" Value="15"/>
             <Setter Property="FontWeight" Value="Bold"/>
             <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="BorderBrush" Value="#FFFF526E"/>
+            <Setter Property="SnapsToDevicePixels" Value="True"/>
+            <Setter Property="UseLayoutRounding" Value="True"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="{x:Type Button}">
                         <Border x:Name="border"
                                 Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
                                 CornerRadius="8"
-                                Padding="{TemplateBinding Padding}">
-                            <Border.Effect>
-                                <DropShadowEffect BlurRadius="25" ShadowDepth="0" Color="#FF1E40" Opacity="0.55"/>
-                            </Border.Effect>
+                                Padding="{TemplateBinding Padding}"
+                                SnapsToDevicePixels="True"
+                                UseLayoutRounding="True">
                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
                                 <Setter TargetName="border" Property="Background" Value="#FFFF3B5C"/>
-                                <Setter TargetName="border" Property="Effect">
-                                    <Setter.Value>
-                                        <DropShadowEffect BlurRadius="35" ShadowDepth="0" Color="#FF3B5C" Opacity="0.85"/>
-                                    </Setter.Value>
-                                </Setter>
+                                <Setter TargetName="border" Property="BorderBrush" Value="#FFFFFFFF"/>
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
                                 <Setter TargetName="border" Property="Background" Value="#FFB80024"/>
@@ -126,6 +126,8 @@
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="BorderBrush" Value="#33FFFFFF"/>
             <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="SnapsToDevicePixels" Value="True"/>
+            <Setter Property="UseLayoutRounding" Value="True"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="{x:Type Button}">
@@ -134,7 +136,9 @@
                                 BorderBrush="{TemplateBinding BorderBrush}"
                                 BorderThickness="{TemplateBinding BorderThickness}"
                                 CornerRadius="8"
-                                Padding="{TemplateBinding Padding}">
+                                Padding="{TemplateBinding Padding}"
+                                SnapsToDevicePixels="True"
+                                UseLayoutRounding="True">
                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
                         <ControlTemplate.Triggers>
@@ -157,6 +161,8 @@
             <Setter Property="CaretBrush" Value="#FF1E40"/>
             <Setter Property="FontSize" Value="13"/>
             <Setter Property="Padding" Value="12,8"/>
+            <Setter Property="SnapsToDevicePixels" Value="True"/>
+            <Setter Property="UseLayoutRounding" Value="True"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="{x:Type TextBox}">
@@ -164,17 +170,14 @@
                                 Background="{TemplateBinding Background}"
                                 BorderBrush="{TemplateBinding BorderBrush}"
                                 BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="6">
+                                CornerRadius="6"
+                                SnapsToDevicePixels="True"
+                                UseLayoutRounding="True">
                             <ScrollViewer x:Name="PART_ContentHost" Focusable="false" HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Hidden"/>
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsFocused" Value="True">
                                 <Setter TargetName="border" Property="BorderBrush" Value="#FF1E40"/>
-                                <Setter TargetName="border" Property="Effect">
-                                    <Setter.Value>
-                                        <DropShadowEffect BlurRadius="12" ShadowDepth="0" Color="#FF1E40" Opacity="0.4"/>
-                                    </Setter.Value>
-                                </Setter>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -190,13 +193,17 @@
             <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="Padding" Value="12,8"/>
             <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="SnapsToDevicePixels" Value="True"/>
+            <Setter Property="UseLayoutRounding" Value="True"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="{x:Type ComboBoxItem}">
                         <Border x:Name="itemBorder"
                                 Background="{TemplateBinding Background}"
                                 BorderThickness="0"
-                                Padding="{TemplateBinding Padding}">
+                                Padding="{TemplateBinding Padding}"
+                                SnapsToDevicePixels="True"
+                                UseLayoutRounding="True">
                             <ContentPresenter HorizontalAlignment="Left" VerticalAlignment="Center"/>
                         </Border>
                         <ControlTemplate.Triggers>
@@ -221,7 +228,9 @@
                     Background="#0D1018"
                     BorderBrush="#33FF1E40"
                     BorderThickness="1"
-                    CornerRadius="6">
+                    CornerRadius="6"
+                    SnapsToDevicePixels="True"
+                    UseLayoutRounding="True">
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
@@ -232,7 +241,8 @@
                     <Path x:Name="arrow" Grid.Column="1"
                           HorizontalAlignment="Center" VerticalAlignment="Center"
                           Data="M 0 0 L 4 4 L 8 0"
-                          Stroke="#FF1E40" StrokeThickness="1.8" StrokeStartLineCap="Round" StrokeEndLineCap="Round"/>
+                          Stroke="#FF1E40" StrokeThickness="2" StrokeStartLineCap="Round" StrokeEndLineCap="Round"
+                          SnapsToDevicePixels="True"/>
                 </Grid>
             </Border>
             <ControlTemplate.Triggers>
@@ -258,10 +268,12 @@
             <Setter Property="Padding" Value="12,7"/>
             <Setter Property="MaxDropDownHeight" Value="320"/>
             <Setter Property="ItemContainerStyle" Value="{StaticResource FuturisticComboBoxItemStyle}"/>
+            <Setter Property="SnapsToDevicePixels" Value="True"/>
+            <Setter Property="UseLayoutRounding" Value="True"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="{x:Type ComboBox}">
-                        <Grid x:Name="templateRoot">
+                        <Grid x:Name="templateRoot" SnapsToDevicePixels="True" UseLayoutRounding="True">
                             <ToggleButton x:Name="toggleButton"
                                           Template="{StaticResource ComboBoxToggleButtonTemplate}"
                                           Focusable="False"
@@ -276,7 +288,8 @@
                                               HorizontalAlignment="Left"
                                               VerticalAlignment="Center"
                                               Margin="{TemplateBinding Padding}"
-                                              IsHitTestVisible="False"/>
+                                              IsHitTestVisible="False"
+                                              SnapsToDevicePixels="True"/>
 
                             <!-- Glassmorphism Dropdown Popup -->
                             <Popup x:Name="PART_Popup"
@@ -292,10 +305,10 @@
                                         BorderBrush="#80FF1E40"
                                         BorderThickness="1"
                                         CornerRadius="8"
-                                        Margin="0,4,0,8">
-                                    <Border.Effect>
-                                        <DropShadowEffect BlurRadius="20" ShadowDepth="4" Color="#FF1E40" Opacity="0.35"/>
-                                    </Border.Effect>
+                                        Margin="0,4,0,8"
+                                        SnapsToDevicePixels="True"
+                                        UseLayoutRounding="True"
+                                        TextOptions.TextFormattingMode="Display">
                                     <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                                         <ItemsPresenter KeyboardNavigation.DirectionalNavigation="Contained"/>
                                     </ScrollViewer>
@@ -317,6 +330,18 @@
 
         <!-- Implicit Default ComboBox Style -->
         <Style TargetType="{x:Type ComboBox}" BasedOn="{StaticResource FuturisticComboBoxStyle}"/>
+
+        <!-- Crisp Rendering Global Defaults -->
+        <Style TargetType="{x:Type TextBlock}">
+            <Setter Property="TextOptions.TextFormattingMode" Value="Display"/>
+            <Setter Property="TextOptions.TextRenderingMode" Value="ClearType"/>
+            <Setter Property="UseLayoutRounding" Value="True"/>
+        </Style>
+        <Style TargetType="{x:Type Image}">
+            <Setter Property="RenderOptions.BitmapScalingMode" Value="HighQuality"/>
+            <Setter Property="UseLayoutRounding" Value="True"/>
+            <Setter Property="SnapsToDevicePixels" Value="True"/>
+        </Style>
 
     </Application.Resources>
 </Application>
