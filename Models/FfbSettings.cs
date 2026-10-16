@@ -137,24 +137,15 @@ namespace AcVelocity.Models
         public bool HasKeyBinding => !string.IsNullOrEmpty(KeyHex) && KeyHex != "-1" && KeyHex != "0" && KeyHex != "0x0";
         public bool HasXboxBinding => !string.IsNullOrEmpty(XboxButton) && XboxButton != "-1";
 
-        public string WheelBindingDisplay => ButtonIndex >= 0
-            ? $"JOY{(JoyIndex < 0 ? 0 : JoyIndex)} · B{ButtonIndex} (Btn #{ButtonIndex + 1})"
-            : "UNBOUND";
-
+        public string WheelBindingDisplay => ButtonIndex >= 0 ? $"พวงมาลัย ปุ่ม #{ButtonIndex + 1} (B{ButtonIndex})" : "— ยังไม่ตั้งค่า —";
         public string KeyBindingDisplay => FormatVirtualKeyName(KeyHex);
-
-        public string XboxBindingDisplay => string.IsNullOrEmpty(XboxButton) || XboxButton == "-1"
-            ? "NONE"
-            : XboxButton;
-
-        public string CaptureButtonText => IsListening
-            ? "🔴 PRESS KEY / WHEEL / PAD (ESC CANCEL)"
-            : "🎯 CLICK TO BIND";
+        public string XboxBindingDisplay => string.IsNullOrEmpty(XboxButton) || XboxButton == "-1" ? "— ไม่มี —" : XboxButton;
+        public string CaptureButtonText => IsListening ? "🔴 กดปุ่มเลย... (ESC ยกเลิก)" : "🎯 ตั้งปุ่ม (Bind)";
 
         public static string FormatVirtualKeyName(string? keyHex)
         {
             if (string.IsNullOrWhiteSpace(keyHex) || keyHex == "-1" || keyHex == "0" || keyHex == "0x0" || keyHex == "0x00")
-                return "UNBOUND";
+                return "— ไม่มี —";
 
             int commentIdx = keyHex.IndexOf(';');
             if (commentIdx >= 0) keyHex = keyHex.Substring(0, commentIdx).Trim();
@@ -171,7 +162,7 @@ namespace AcVelocity.Models
                     return keyHex.ToUpperInvariant();
             }
 
-            if (vk <= 0) return "UNBOUND";
+            if (vk <= 0) return "— ไม่มี —";
 
             return vk switch
             {
